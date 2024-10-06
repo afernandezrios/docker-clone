@@ -1,9 +1,10 @@
 package ccrun
 
 import (
-	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
+	"syscall"
 
 	"github.com/spf13/cobra"
 )
@@ -23,17 +24,21 @@ func init() {
 }
 
 func runCommand(args []string) (e error) {
+	// 1. Create new hostname: sudo unshare --uts /bin/bash && hostname new_host
+	// 2. Run command inside the new hostname
 
 	cmd := exec.Command(args[0], args[1:]...)
-	var serr bytes.Buffer
-	cmd.Stderr = &serr
-	stdout, err := cmd.Output()
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	cmd.Stdin = os.Stdin
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: syscall.CLONE_NEWUTS,
+	}
 
-	if err != nil {
-		fmt.Printf(" %s\n", serr.String())
+	if err := cmd.Run(); err != nil {
+		fmt.Printf(" %s\n", err)
 		return err
 	}
 
-	fmt.Printf("%s\n", stdout)
 	return nil
 }
