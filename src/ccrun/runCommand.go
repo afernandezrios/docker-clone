@@ -13,6 +13,7 @@ var ccrunCmd = &cobra.Command{
 	Short: "ccrun command",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		return runCommand(args)
 	},
 }
@@ -27,12 +28,12 @@ func runCommand(args []string) (e error) {
 	var serr bytes.Buffer
 	cmd.Stderr = &serr
 	stdout, err := cmd.Output()
-	
+
 	if err != nil {
 		fmt.Printf(" %s\n", serr.String())
 		return err
 	}
-	
-	fmt.Printf("I got this output: %s\n", stdout)
+
+	fmt.Printf("%s\n", stdout)
 	return nil
 }

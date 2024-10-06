@@ -1,14 +1,13 @@
 package ccrun
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 )
 
 var rootCmd = &cobra.Command{
-	Use: "ccrun",
+	Use:   "ccrun",
 	Short: "Coding Challenges Runtime",
 	Run: func(cmd *cobra.Command, args []string) {
 
@@ -16,8 +15,8 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
+	rootCmd.SilenceErrors = true
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "Oops. An error while exexuting command '%s'\n", err)
 		os.Exit(1)
 	}
 }
