@@ -7,7 +7,7 @@ https://codingchallenges.fyi/challenges/challenge-docker/
 
 ```bash
 cd src
-sudo go run main.go ccrun ls .
+sudo go run main.go ccrun hostname && ls .
 ```
 
 It must be run with `sudo` to be able to create a new hostname.

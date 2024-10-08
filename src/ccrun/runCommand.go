@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -24,10 +25,8 @@ func init() {
 }
 
 func runCommand(args []string) (e error) {
-	// 1. Create new hostname: sudo unshare --uts /bin/bash && hostname new_host
-	// 2. Run command inside the new hostname
 
-	cmd := exec.Command(args[0], args[1:]...)
+	cmd := exec.Command("/bin/bash", "-c", "hostname new-hostname;" + strings.Join(args, ";"))
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	cmd.Stdin = os.Stdin
