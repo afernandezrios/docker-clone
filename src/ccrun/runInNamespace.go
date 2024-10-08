@@ -9,30 +9,29 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var ccrunCmd = &cobra.Command{
-	Use:   "run",
-	Short: "run command",
+var runInNamespaceCmd = &cobra.Command{
+	Use:   "ccrun",
+	Short: "ccrun command",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
-		return runCommand(args)
+		return runInNewUTSNamespace(args)
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(ccrunCmd)
+	rootCmd.AddCommand(runInNamespaceCmd)
 }
 
-func runCommand(args []string) (e error) {
+func runInNewUTSNamespace(args []string) (e error) {
 
-	syscall.Sethostname([]byte("new-hostname"))
-	syscall.Chroot("../alpine")
-	syscall.Chdir("/")
-
-	cmd := exec.Command(args[0], args[1:]...)
+	cmd := exec.Command("/proc/self/exe", append([]string{"run"}, args[0:]...)...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	cmd.Stdin = os.Stdin
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: syscall.CLONE_NEWUTS,
+	}
 
 	if err := cmd.Run(); err != nil {
 		fmt.Printf(" %s\n", err)
