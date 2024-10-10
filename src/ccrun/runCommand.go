@@ -28,6 +28,7 @@ func runCommand(args []string) (e error) {
 	syscall.Sethostname([]byte("new-hostname"))
 	syscall.Chroot("../alpine")
 	syscall.Chdir("/")
+	syscall.Mount("proc", "proc", "proc", 0, "")
 
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stderr = os.Stderr
@@ -36,8 +37,10 @@ func runCommand(args []string) (e error) {
 
 	if err := cmd.Run(); err != nil {
 		fmt.Printf(" %s\n", err)
+		syscall.Unmount("/proc", 0)
 		return err
 	}
 
+	syscall.Unmount("/proc", 0)
 	return nil
 }
