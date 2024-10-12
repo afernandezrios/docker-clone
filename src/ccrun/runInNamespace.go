@@ -30,8 +30,25 @@ func runInNewUTSNamespace(args []string) (e error) {
 	cmd.Stdout = os.Stdout
 	cmd.Stdin = os.Stdin
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags:   syscall.CLONE_NEWUTS | syscall.CLONE_NEWPID | syscall.CLONE_NEWNS,
+		Cloneflags: syscall.CLONE_NEWUTS |
+			syscall.CLONE_NEWPID |
+			syscall.CLONE_NEWNS |
+			syscall.CLONE_NEWUSER,
 		Unshareflags: syscall.CLONE_NEWNS,
+		UidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,           // root in container User namespace
+				HostID:      os.Getuid(), // current user UID
+				Size:        1,
+			},
+		},
+		GidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,           // root in container User namespace
+				HostID:      os.Getgid(), // current user GID
+				Size:        1,
+			},
+		},
 	}
 
 	if err := cmd.Run(); err != nil {
