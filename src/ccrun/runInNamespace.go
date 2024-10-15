@@ -25,6 +25,10 @@ func init() {
 
 func runInNewUTSNamespace(args []string) (e error) {
 
+	// TODO: delete cgroup on exit?
+	cgroup := NewCgroup()
+	fmt.Printf("New cgroup created: %s\n", cgroup)
+
 	cmd := exec.Command("/proc/self/exe", append([]string{"run"}, args[0:]...)...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
@@ -33,6 +37,7 @@ func runInNewUTSNamespace(args []string) (e error) {
 		Cloneflags: syscall.CLONE_NEWUTS |
 			syscall.CLONE_NEWPID |
 			syscall.CLONE_NEWNS |
+			syscall.CLONE_NEWCGROUP |
 			syscall.CLONE_NEWUSER,
 		Unshareflags: syscall.CLONE_NEWNS,
 		UidMappings: []syscall.SysProcIDMap{
