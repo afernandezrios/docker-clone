@@ -25,6 +25,8 @@ func init() {
 
 func runInNewUTSNamespace(args []string) (e error) {
 
+	Login()
+
 	// TODO: delete cgroup on exit?
 	cgroup := NewCgroup()
 	fmt.Printf("New cgroup created: %s\n", cgroup)
