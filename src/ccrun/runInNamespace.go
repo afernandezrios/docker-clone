@@ -25,7 +25,7 @@ func init() {
 
 func runInNewUTSNamespace(args []string) (e error) {
 
-	Login()
+	PullManifest()
 
 	// TODO: delete cgroup on exit?
 	cgroup := NewCgroup()
