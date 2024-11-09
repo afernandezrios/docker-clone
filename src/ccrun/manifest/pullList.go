@@ -20,6 +20,11 @@ type Manifest struct {
 	Platform  Platform `json:"platform"`
 }
 
+type Platform struct {
+	Architecture string `json:"architecture"`
+	Os           string `json:"os"`
+}
+
 func ProcessManifestList(response *http.Response) (manifestList ManifestListInfo) {
 	defer response.Body.Close()
 
