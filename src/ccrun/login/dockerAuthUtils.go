@@ -1,4 +1,4 @@
-package ccrun
+package login
 
 import (
 	"fmt"
