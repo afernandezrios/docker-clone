@@ -12,12 +12,13 @@ import (
 )
 
 type ManifestLayersData struct {
-	SchemaVersion int     `json:"schemaVersion"`
-	MediaType     string  `json:"mediaType"`
-	Layers        []Layer `json:"layers"`
+	SchemaVersion int        `json:"schemaVersion"`
+	MediaType     string     `json:"mediaType"`
+	Config        BlobInfo   `json:"config"`
+	Layers        []BlobInfo `json:"layers"`
 }
 
-type Layer struct {
+type BlobInfo struct {
 	MediaType string `json:"mediaType"`
 	Digest    string `json:"digest"`
 	Size      int    `json:"size"`
@@ -53,24 +54,27 @@ func DownloadLayers(manifest Manifest, token string) (path string) {
 
 	downloadPath := "../alpine-docker/"
 	for _, layer := range layersData.Layers {
-		filePath := downloadLayer(layer.Digest, token, downloadPath)
+		filePath := downloadBlob(layer, token, downloadPath)
 		unzipLayer(filePath, downloadPath)
 	}
+
+	// Download config
+	downloadBlob(layersData.Config, token, downloadPath)
 
 	return downloadPath
 }
 
 // For simplicity, all documents will be downloaded in a hardcoded path and cache headers are ignored
 // Doc: https://distribution.github.io/distribution/spec/api/#pulling-a-layer
-func downloadLayer(digest string, token string, path string) (filePath string) {
+func downloadBlob(blobInfo BlobInfo, token string, path string) (filePath string) {
 
 	err := os.MkdirAll(path, 0700)
 	if err != nil {
 		panic(err)
 	}
 
-	// According to documentation it is a gzipped tar: https://distribution.github.io/distribution/spec/manifest-v2-2/#media-types
-	filePath = path + digest + ".tar.gz"
+	digest := blobInfo.Digest
+	filePath = path + digest + getExtension(blobInfo)
 	out, err := os.Create(filePath)
 	if err != nil {
 		panic(err)
@@ -98,6 +102,22 @@ func downloadLayer(digest string, token string, path string) (filePath string) {
 		panic(err)
 	}
 	return filePath
+}
+
+// Getting extension of the file according to: https://distribution.github.io/distribution/spec/manifest-v2-2/#media-types
+// It also supports OCI standard -> https://github.com/opencontainers/image-spec/blob/main/manifest.md#image-manifest-property-descriptions
+func getExtension(blobInfo BlobInfo) string {
+	switch blobInfo.MediaType {
+	case "application/vnd.docker.image.rootfs.diff.tar.gzip", "application/vnd.oci.image.layer.v1.tar+gzip":
+		// “Layer”, as a gzipped tar
+		return ".tar.gz"
+	case "application/vnd.docker.container.image.v1+json", "application/vnd.oci.image.config.v1+json":
+		// Container config JSON
+		return ".json"
+	default:
+		fmt.Println("MediaType not implemented: " + blobInfo.MediaType)
+		return ""
+	}
 }
 
 func unzipLayer(zipPath string, destPath string) {
