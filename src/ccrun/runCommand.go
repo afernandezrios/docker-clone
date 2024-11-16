@@ -26,7 +26,7 @@ func init() {
 func runCommand(args []string) (e error) {
 
 	syscall.Sethostname([]byte("new-hostname"))
-	syscall.Chroot("../alpine")
+	syscall.Chroot("../container-dir")
 	syscall.Chdir("/")
 	syscall.Mount("proc", "proc", "proc", 0, "")
 

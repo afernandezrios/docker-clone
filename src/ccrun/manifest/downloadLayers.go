@@ -52,7 +52,7 @@ func DownloadLayers(manifest Manifest, token string) (path string) {
 		panic(err)
 	}
 
-	downloadPath := "../alpine-docker/"
+	downloadPath := "../container-dir/"
 	for _, layer := range layersData.Layers {
 		filePath := downloadBlob(layer, token, downloadPath)
 		unzipLayer(filePath, downloadPath)
