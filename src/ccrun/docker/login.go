@@ -1,4 +1,4 @@
-package login
+package docker
 
 import (
 	"encoding/json"

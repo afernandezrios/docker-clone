@@ -1,4 +1,4 @@
-package manifest
+package docker
 
 import (
 	"archive/tar"

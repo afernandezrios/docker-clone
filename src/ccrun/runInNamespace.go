@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"syscall"
 
-	"github.com/afernandezrios/docker-clone/ccrun/manifest"
+	"github.com/afernandezrios/docker-clone/ccrun/docker"
 	"github.com/spf13/cobra"
 )
 
@@ -26,7 +26,7 @@ func init() {
 
 func runInNewUTSNamespace(args []string) (e error) {
 
-	manifest.PullManifest()
+	docker.DownloadImage()
 
 	// TODO: delete cgroup on exit?
 	cgroup := NewCgroup()

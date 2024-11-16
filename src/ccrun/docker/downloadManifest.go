@@ -1,16 +1,15 @@
-package manifest
+package docker
 
 import (
-	"errors"
+	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"runtime"
-
-	"github.com/afernandezrios/docker-clone/ccrun/login"
 )
 
 // Pull manifest for Alpine image without auth
-func PullManifest() (string, error) {
+func PullManifest() *http.Response {
 
 	client := &http.Client{}
 	alpineManifestPath := "https://registry.hub.docker.com/v2/alpine/git/manifests/latest"
@@ -21,30 +20,17 @@ func PullManifest() (string, error) {
 		log.Fatalf("Cannot get authorization to pull alpine repository: %s \n", err)
 	}
 
-	switch status := resp.StatusCode; status {
-	case 401:
-		// auth -> info in www-authenticate header: Bearer realm="https://auth.docker.io/token",service="registry.docker.io",scope="repository:alpine/git:pull"
-		authInfo := login.ParseWwwAuthentication(resp.Header.Get("www-authenticate"))
-		auth_token := login.Login(authInfo)
-		manifest := pullManifestWithAuth(auth_token)
-		return DownloadLayers(manifest, auth_token), nil
-	case 200:
-		log.Fatalf("Cannot get image manifest without auth: %s \n", resp.Status)
-		return "", errors.New("not implemented")
-	default:
-		log.Fatalf("Cannot get image manifest: %s \n", resp.Status)
-		return "", errors.New("not implemented")
-	}
+	return resp
 }
 
 // Pull manifest for Alpine image
-func pullManifestWithAuth(token string) Manifest {
+func PullManifestWithAuth(token string) Manifest {
 
 	client := &http.Client{}
 	alpineManifestPath := "https://registry.hub.docker.com/v2/alpine/git/manifests/latest"
 
 	req, _ := http.NewRequest("GET", alpineManifestPath, nil)
-	req.Header.Set("Authorization", "Bearer "+ token)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Add("Accept", "application/vnd.docker.distribution.manifest.v2+json")
 	resp, err := client.Do(req)
 
@@ -57,10 +43,44 @@ func pullManifestWithAuth(token string) Manifest {
 		return Manifest{}
 	}
 
-	manifestList := ProcessManifestList(resp)
+	manifestList := processManifestList(resp)
 	validManifest := getManifestForCurrentOS(manifestList)
 
 	return *validManifest
+}
+
+type ManifestListInfo struct {
+	SchemaVersion int        `json:"schemaVersion"`
+	MediaType     string     `json:"mediaType"`
+	Manifests     []Manifest `json:"manifests"`
+}
+
+type Manifest struct {
+	MediaType string   `json:"mediaType"`
+	Digest    string   `json:"digest"`
+	Size      int      `json:"size"`
+	Platform  Platform `json:"platform"`
+}
+
+type Platform struct {
+	Architecture string `json:"architecture"`
+	Os           string `json:"os"`
+}
+
+func processManifestList(response *http.Response) (manifestList ManifestListInfo) {
+	defer response.Body.Close()
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		log.Fatalf("Read response failed, reason: %v \n", err)
+	}
+
+	manifestResponse := &ManifestListInfo{}
+	if err := json.Unmarshal(body, &manifestResponse); err != nil {
+		log.Fatalf("Parse response failed, reason: %v \n", err)
+	}
+
+	return *manifestResponse
 }
 
 func getManifestForCurrentOS(manifestList ManifestListInfo) *Manifest {
