@@ -54,19 +54,17 @@ func DownloadLayers(manifest Manifest, token string) (path string) {
 
 	downloadPath := "../container-dir/"
 	for _, layer := range layersData.Layers {
-		filePath := downloadBlob(layer, token, downloadPath)
+		filePath := downloadLayer(layer, token, downloadPath)
 		unzipLayer(filePath, downloadPath)
 	}
 
 	// Download config
-	downloadBlob(layersData.Config, token, downloadPath)
+	downloadConfig(layersData.Config, token, downloadPath)
 
 	return downloadPath
 }
 
-// For simplicity, all documents will be downloaded in a hardcoded path and cache headers are ignored
-// Doc: https://distribution.github.io/distribution/spec/api/#pulling-a-layer
-func downloadBlob(blobInfo BlobInfo, token string, path string) (filePath string) {
+func downloadLayer(blobInfo BlobInfo, token string, path string) (filePath string) {
 
 	err := os.MkdirAll(path, 0700)
 	if err != nil {
@@ -75,6 +73,25 @@ func downloadBlob(blobInfo BlobInfo, token string, path string) (filePath string
 
 	digest := blobInfo.Digest
 	filePath = path + digest + getExtension(blobInfo)
+
+	return downloadBlob(digest, token, filePath)
+}
+
+func downloadConfig(blobInfo BlobInfo, token string, path string) (filePath string) {
+
+	err := os.MkdirAll(path, 0700)
+	if err != nil {
+		panic(err)
+	}
+
+	filePath = path + "config" + getExtension(blobInfo)
+	return downloadBlob(blobInfo.Digest, token, filePath)
+}
+
+// For simplicity, all documents will be downloaded in a hardcoded path and cache headers are ignored
+// Doc: https://distribution.github.io/distribution/spec/api/#pulling-a-layer
+func downloadBlob(digest string, token string, filePath string) string {
+
 	out, err := os.Create(filePath)
 	if err != nil {
 		panic(err)
