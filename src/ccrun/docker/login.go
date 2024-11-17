@@ -3,12 +3,10 @@ package docker
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"log"
 	"net/http"
 )
 
-type LoginInfo struct {
+type LoginData struct {
 	Token string `json:"token"`
 }
 
@@ -18,29 +16,28 @@ type LoginInfo struct {
 // service:="registry.docker.io";
 // scope:="repository:alpine/git:pull";
 // See https://distribution.github.io/distribution/spec/auth/token/#how-to-authenticate
-func Login(dockerAuthInfo AuthenticationInfo) (token string) {
+func (c *Client) Login(authInfo AuthenticationInfo) (*LoginData, error) {
 
-	path := "%s?service=%s&scope=%s"
-
-	loginPath := fmt.Sprintf(path, dockerAuthInfo.Realm, dockerAuthInfo.Service, dockerAuthInfo.Scope)
-
-	resp, err := http.Get(loginPath)
-
+	req, err := http.NewRequest("GET", authInfo.Realm, nil)
 	if err != nil {
-		fmt.Printf("Cannot get authorization to pull alpine repository: %s \n", err)
+		return nil, fmt.Errorf("cannot create login request: %w", err)
 	}
 
-	defer resp.Body.Close()
+	reqUrl := req.URL
+	queryParams := reqUrl.Query()
+	queryParams.Set("service", authInfo.Service)
+	queryParams.Set("scope", authInfo.Scope)
+	reqUrl.RawQuery = queryParams.Encode()
 
-	body, err := io.ReadAll(resp.Body)
+	resp, err := c.client.Do(req)
 	if err != nil {
-		log.Fatalf("Read response failed, reason: %v \n", err)
+		return nil, fmt.Errorf("failed to submit login request: %w", err)
 	}
 
-	loginResponse := &LoginInfo{}
-	if err := json.Unmarshal(body, &loginResponse); err != nil {
-		log.Fatalf("Parse response failed, reason: %v \n", err)
+	var response *LoginData
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode login response: %w", err)
 	}
 
-	return loginResponse.Token
+	return response, nil
 }
