@@ -24,7 +24,7 @@ type BlobInfo struct {
 	Size      int    `json:"size"`
 }
 
-func DownloadLayers(manifest Manifest, token string) (path string) {
+func (c *Client) DownloadLayers(manifest Manifest, token string) (path string) {
 
 	req, _ := http.NewRequest("GET", "https://registry.hub.docker.com/v2/alpine/git/manifests/"+manifest.Digest, nil)
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -54,11 +54,13 @@ func DownloadLayers(manifest Manifest, token string) (path string) {
 
 	downloadPath := "../container-dir/"
 	for _, layer := range layersData.Layers {
+		fmt.Printf("Downloading layer: %s", layer.Digest)
 		filePath := downloadLayer(layer, token, downloadPath)
 		unzipLayer(filePath, downloadPath)
 	}
 
 	// Download config
+	fmt.Printf("Downloading layer: %s", layersData.Config.Digest)
 	downloadConfig(layersData.Config, token, downloadPath)
 
 	return downloadPath

@@ -2,6 +2,7 @@ package docker
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -9,44 +10,49 @@ import (
 )
 
 // Pull manifest for Alpine image without auth
-func PullManifest() *http.Response {
+func (c *Client) PullManifest() (*Manifest, error) {
 
-	client := &http.Client{}
 	alpineManifestPath := "https://registry.hub.docker.com/v2/alpine/git/manifests/latest"
 	req, _ := http.NewRequest("GET", alpineManifestPath, nil)
-	resp, err := client.Do(req)
+	resp, err := c.client.Do(req)
 
 	if err != nil {
 		log.Fatalf("Cannot get authorization to pull alpine repository: %s \n", err)
 	}
 
-	return resp
+	switch status := resp.StatusCode; status {
+	case 401:
+		// auth -> info in www-authenticate header: Bearer realm="https://auth.docker.io/token",service="registry.docker.io",scope="repository:alpine/git:pull"
+		// authInfo := ParseWwwAuthentication(resp.Header.Get("www-authenticate"))
+		return nil, fmt.Errorf("unauthorized: %w", NewUnAuthorizedError(*resp))
+	default:
+		return nil, fmt.Errorf("status received %w", ErrNotImplemented)
+	}
 }
 
 // Pull manifest for Alpine image
-func PullManifestWithAuth(token string) Manifest {
+func (c *Client) PullManifestWithAuth(token string) (*Manifest, error) {
 
-	client := &http.Client{}
 	alpineManifestPath := "https://registry.hub.docker.com/v2/alpine/git/manifests/latest"
 
 	req, _ := http.NewRequest("GET", alpineManifestPath, nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Add("Accept", "application/vnd.docker.distribution.manifest.v2+json")
-	resp, err := client.Do(req)
+	resp, err := c.client.Do(req)
 
 	if err != nil {
-		log.Fatalf("Cannot get authorization to pull alpine repository: %s \n", err)
+		return nil, fmt.Errorf("cannot get authorization to pull alpine repository: %w", ErrInternalError)
 	}
 
 	if resp.StatusCode != 200 {
 		log.Fatalf("Cannot get image manifest: %s \n", resp.Status)
-		return Manifest{}
+		return nil, fmt.Errorf("status %w", ErrNotImplemented)
 	}
 
 	manifestList := processManifestList(resp)
 	validManifest := getManifestForCurrentOS(manifestList)
 
-	return *validManifest
+	return validManifest, nil
 }
 
 type ManifestListInfo struct {
