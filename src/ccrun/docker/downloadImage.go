@@ -15,17 +15,13 @@ func DownloadImage() {
 	var unauthErr UnauthorizedError
 	if errors.As(err, &unauthErr) {
 		authInfo := ParseWwwAuthentication(unauthErr.authInfo)
+		client.Authorize(authInfo)
 
-		authToken, err := client.Login(authInfo)
+		manifest, err := client.PullManifestWithAuth()
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		manifest, err := client.PullManifestWithAuth(authToken.Token)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		client.DownloadLayers(*manifest, authToken.Token)
+		client.DownloadLayers(*manifest)
 	}
 }

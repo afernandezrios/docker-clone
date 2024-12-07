@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 )
@@ -24,10 +25,10 @@ type BlobInfo struct {
 	Size      int    `json:"size"`
 }
 
-func (c *Client) DownloadLayers(manifest Manifest, token string) (path string) {
+func (c *Client) DownloadLayers(manifest Manifest) (path string) {
 
 	req, _ := http.NewRequest("GET", "https://registry.hub.docker.com/v2/alpine/git/manifests/"+manifest.Digest, nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", "Bearer "+c.token)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -53,64 +54,51 @@ func (c *Client) DownloadLayers(manifest Manifest, token string) (path string) {
 	}
 
 	downloadPath := "../container-dir/"
+	err = os.MkdirAll(downloadPath, 0700)
+	if err != nil {
+		panic(err)
+	}
+
+	// Download layers
 	for _, layer := range layersData.Layers {
-		fmt.Printf("Downloading layer: %s", layer.Digest)
-		filePath := downloadLayer(layer, token, downloadPath)
+		fmt.Printf("Downloading layer: %s\n", layer.Digest)
+		filePath := downloadPath + layer.Digest + getExtension(layer)
+		c.DownloadBlob(layer.Digest, filePath)
 		unzipLayer(filePath, downloadPath)
 	}
 
 	// Download config
-	fmt.Printf("Downloading layer: %s", layersData.Config.Digest)
-	downloadConfig(layersData.Config, token, downloadPath)
+	fmt.Printf("Downloading config: %s\n", layersData.Config.Digest)
+	configPath := downloadPath + "config" + getExtension(layersData.Config)
+	c.DownloadBlob(layersData.Config.Digest, configPath)
 
 	return downloadPath
 }
 
-func downloadLayer(blobInfo BlobInfo, token string, path string) (filePath string) {
-
-	err := os.MkdirAll(path, 0700)
-	if err != nil {
-		panic(err)
-	}
-
-	digest := blobInfo.Digest
-	filePath = path + digest + getExtension(blobInfo)
-
-	return downloadBlob(digest, token, filePath)
-}
-
-func downloadConfig(blobInfo BlobInfo, token string, path string) (filePath string) {
-
-	err := os.MkdirAll(path, 0700)
-	if err != nil {
-		panic(err)
-	}
-
-	filePath = path + "config" + getExtension(blobInfo)
-	return downloadBlob(blobInfo.Digest, token, filePath)
-}
-
 // For simplicity, all documents will be downloaded in a hardcoded path and cache headers are ignored
 // Doc: https://distribution.github.io/distribution/spec/api/#pulling-a-layer
-func downloadBlob(digest string, token string, filePath string) string {
+func (c *Client) DownloadBlob(digest string, filePath string) string {
 
 	out, err := os.Create(filePath)
 	if err != nil {
+		log.Fatalf("Error creating layer file: %s", err)
 		panic(err)
 	}
 	defer out.Close()
 
 	req, _ := http.NewRequest("GET", "https://registry.hub.docker.com/v2/alpine/git/blobs/"+digest, nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", "Bearer "+c.token)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 
 	if err != nil {
+		log.Fatalf("Error downloading layer: %s", err)
 		panic(err)
 	}
 
 	if resp.StatusCode != 200 {
+		log.Fatalf("Layer blob not found: " + resp.Status)
 		panic(errors.New("Layer blob not found: " + resp.Status))
 	}
 
@@ -143,6 +131,7 @@ func unzipLayer(zipPath string, destPath string) {
 	// Open the gzipped tar file
 	file, err := os.Open(zipPath)
 	if err != nil {
+		log.Fatalf("Error opening zip layer: %s\n", err)
 		panic(err)
 	}
 	defer file.Close()
@@ -150,12 +139,13 @@ func unzipLayer(zipPath string, destPath string) {
 	// Create a gzip reader
 	gzipReader, err := gzip.NewReader(file)
 	if err != nil {
+		log.Fatalf("Error creating gzip reader: %s\n", err)
 		panic(err)
 	}
 	defer gzipReader.Close()
 
 	// Create a tar reader
-	tarReader := tar.NewReader(gzipReader)
+	tarReader := tar.NewReader(gzipReader) 
 
 	// Iterate through the files in the tar archive
 	for {
@@ -164,6 +154,7 @@ func unzipLayer(zipPath string, destPath string) {
 			break // End of archive
 		}
 		if err != nil {
+			log.Fatalf("Error iterating files in tar archive: %s\n", err)
 			panic(err)
 		}
 
@@ -172,6 +163,7 @@ func unzipLayer(zipPath string, destPath string) {
 		case tar.TypeDir:
 			// Create directory
 			if err := os.MkdirAll(destPath+header.Name, os.FileMode(header.Mode)); err != nil {
+				log.Fatalf("Directory %s cannot be created: %s\n", header.Name, err)
 				panic(err)
 			}
 		case tar.TypeReg:

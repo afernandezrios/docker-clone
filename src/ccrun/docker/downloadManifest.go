@@ -31,12 +31,12 @@ func (c *Client) PullManifest() (*Manifest, error) {
 }
 
 // Pull manifest for Alpine image
-func (c *Client) PullManifestWithAuth(token string) (*Manifest, error) {
+func (c *Client) PullManifestWithAuth() (*Manifest, error) {
 
 	alpineManifestPath := "https://registry.hub.docker.com/v2/alpine/git/manifests/latest"
 
 	req, _ := http.NewRequest("GET", alpineManifestPath, nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", "Bearer "+ c.token)
 	req.Header.Add("Accept", "application/vnd.docker.distribution.manifest.v2+json")
 	resp, err := c.client.Do(req)
 
