@@ -30,14 +30,21 @@ func runCommand(args []string) (e error) {
 	containerConfig := getContainerConfig()
 
 	syscall.Sethostname([]byte("new-hostname"))
-	syscall.Chroot("../container-dir")
-	syscall.Chdir(containerConfig.Config.WorkingDir)
-	syscall.Mount("proc", "proc", "proc", 0, "")
 	
+	chRootPath:= "../container-dir"
+	syscall.Chroot(chRootPath)
+	
+	chDirPath := containerConfig.Config.WorkingDir
+	fmt.Printf("Working dir: %s\n", chDirPath)
+	syscall.Chdir(chDirPath)
+	
+	syscall.Mount("proc", "proc", "proc", 0, "")
+
 	// Export env variables. We must update Path variable
 	// If not, probably it doesn't found any command because
 	// it won't found /bin dirs in PATH
 	for _, env := range containerConfig.Config.Env {
+		fmt.Printf("New env variable: %s\n", env)
 		envValues := strings.Split(env, "=")
 		syscall.Setenv(envValues[0], envValues[1])
 	}
@@ -49,7 +56,7 @@ func runCommand(args []string) (e error) {
 	cmd.Stdin = os.Stdin
 
 	if err := cmd.Run(); err != nil {
-		fmt.Printf(" %s\n", err)
+		fmt.Printf("Error running command. %s\n", err)
 		syscall.Unmount("/proc", 0)
 		return err
 	}
@@ -60,12 +67,12 @@ func runCommand(args []string) (e error) {
 
 func printEnvVar(varName string) {
 	value, found := syscall.Getenv(varName)
-    if !found {
-        fmt.Println("Environment variable not found")
-        return
-    }
+	if !found {
+		fmt.Println("Environment variable not found")
+		return
+	}
 
-    fmt.Println("PATH:", value)
+	fmt.Println("PATH:", value)
 }
 
 type ContainerConfig struct {
@@ -80,7 +87,10 @@ type ConfigData struct {
 }
 
 func getContainerConfig() ContainerConfig {
-	byteValue, _ := os.ReadFile("../container-dir/config.json")
+	byteValue, err := os.ReadFile("../container-dir/config.json")
+	if err != nil {
+		panic(err)
+	}
 	var containerConfig ContainerConfig
 	json.Unmarshal(byteValue, &containerConfig)
 

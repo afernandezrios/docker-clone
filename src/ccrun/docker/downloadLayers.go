@@ -54,7 +54,7 @@ func (c *Client) DownloadLayers(manifest Manifest) (path string) {
 	}
 
 	downloadPath := "../container-dir/"
-	err = os.MkdirAll(downloadPath, 0700)
+	err = os.MkdirAll(downloadPath, 0777)
 	if err != nil {
 		panic(err)
 	}
@@ -106,6 +106,7 @@ func (c *Client) DownloadBlob(digest string, filePath string) string {
 
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
+		log.Fatal(err)
 		panic(err)
 	}
 	return filePath
@@ -145,7 +146,7 @@ func unzipLayer(zipPath string, destPath string) {
 	defer gzipReader.Close()
 
 	// Create a tar reader
-	tarReader := tar.NewReader(gzipReader) 
+	tarReader := tar.NewReader(gzipReader)
 
 	// Iterate through the files in the tar archive
 	for {
@@ -167,30 +168,26 @@ func unzipLayer(zipPath string, destPath string) {
 				panic(err)
 			}
 		case tar.TypeReg:
-			// Create file
-			outFile, err := os.Create(destPath + header.Name)
+			// Create the file with the specified permissions
+			outFile, err := os.OpenFile(destPath+header.Name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777)
 			if err != nil {
-				fmt.Println(err)
-				return
+				fmt.Println("Error creating file:", err)
 			}
 			defer outFile.Close()
 
 			// Copy file content
 			if _, err := io.Copy(outFile, tarReader); err != nil {
 				fmt.Println(err)
-				return
 			}
 		case tar.TypeSymlink:
 			// Create symlink
-			if err := os.Symlink(destPath+header.Linkname, destPath+header.Name); err != nil {
+			if err := os.Symlink(header.Linkname, destPath+header.Name); err != nil {
 				fmt.Println(err)
-				return
 			}
 		case tar.TypeLink:
 			// Create hard link
 			if err := os.Link(destPath+header.Linkname, destPath+header.Name); err != nil {
 				fmt.Println(err)
-				return
 			}
 		default:
 			fmt.Printf("Unable to handle file type %c\n", header.Typeflag)

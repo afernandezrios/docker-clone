@@ -7,7 +7,7 @@ https://codingchallenges.fyi/challenges/challenge-docker/
 
 ```bash
 cd src
-sudo go run main.go ccrun /bin/busybox sh
+sudo go run main.go ccrun /bin/busybox ls .
 ```
 
 ### User namespace
