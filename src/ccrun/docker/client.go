@@ -1,13 +1,12 @@
 package docker
 
 import (
-	"fmt"
 	"net/http"
 )
 
 type Client struct {
 	client *http.Client
-	token string
+	token  string
 }
 
 func NewClient(client *http.Client) *Client {
@@ -17,11 +16,5 @@ func NewClient(client *http.Client) *Client {
 }
 
 func (c *Client) Authorize(authInfo AuthenticationInfo) {
-	var loginData *LoginData
-	loginData, err := c.Login(authInfo)
-	if err != nil {
-		fmt.Printf("cannot authorize docker client")
-	}
-
-	c.token = loginData.Token
+	c.token = c.Login(authInfo).Token
 }

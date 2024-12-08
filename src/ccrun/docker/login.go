@@ -2,7 +2,7 @@ package docker
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -16,11 +16,11 @@ type LoginData struct {
 // service:="registry.docker.io";
 // scope:="repository:alpine/git:pull";
 // See https://distribution.github.io/distribution/spec/auth/token/#how-to-authenticate
-func (c *Client) Login(authInfo AuthenticationInfo) (*LoginData, error) {
+func (c *Client) Login(authInfo AuthenticationInfo) *LoginData {
 
 	req, err := http.NewRequest("GET", authInfo.Realm, nil)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create login request: %w", err)
+		log.Panicf("Cannot create login request: %v", err)
 	}
 
 	reqUrl := req.URL
@@ -31,13 +31,13 @@ func (c *Client) Login(authInfo AuthenticationInfo) (*LoginData, error) {
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to submit login request: %w", err)
+		log.Panicf("Failed to submit login request: %v", err)
 	}
 
 	var response *LoginData
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, fmt.Errorf("failed to decode login response: %w", err)
+		log.Panicf("Failed to decode login response: %v", err)
 	}
 
-	return response, nil
+	return response
 }

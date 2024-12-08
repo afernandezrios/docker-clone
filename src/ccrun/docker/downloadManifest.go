@@ -17,7 +17,7 @@ func (c *Client) PullManifest() (*Manifest, error) {
 	resp, err := c.client.Do(req)
 
 	if err != nil {
-		log.Fatalf("Cannot get authorization to pull alpine repository: %s \n", err)
+		log.Panicf("Cannot get authorization to pull alpine repository: %s \n", err)
 	}
 
 	switch status := resp.StatusCode; status {
@@ -31,28 +31,27 @@ func (c *Client) PullManifest() (*Manifest, error) {
 }
 
 // Pull manifest for Alpine image
-func (c *Client) PullManifestWithAuth() (*Manifest, error) {
+func (c *Client) PullManifestWithAuth() *Manifest {
 
 	alpineManifestPath := "https://registry.hub.docker.com/v2/alpine/git/manifests/latest"
 
 	req, _ := http.NewRequest("GET", alpineManifestPath, nil)
-	req.Header.Set("Authorization", "Bearer "+ c.token)
+	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Add("Accept", "application/vnd.docker.distribution.manifest.v2+json")
 	resp, err := c.client.Do(req)
 
 	if err != nil {
-		return nil, fmt.Errorf("cannot get authorization to pull alpine repository: %w", ErrInternalError)
+		log.Panicf("Cannot get authorization to pull alpine repository: %v", ErrInternalError)
 	}
 
 	if resp.StatusCode != 200 {
-		log.Fatalf("Cannot get image manifest: %s \n", resp.Status)
-		return nil, fmt.Errorf("status %w", ErrNotImplemented)
+		log.Panicf("Cannot get image manifest: %s \n", resp.Status)
 	}
 
 	manifestList := processManifestList(resp)
 	validManifest := getManifestForCurrentOS(manifestList)
 
-	return validManifest, nil
+	return validManifest
 }
 
 type ManifestListInfo struct {
@@ -78,12 +77,12 @@ func processManifestList(response *http.Response) (manifestList ManifestListInfo
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		log.Fatalf("Read response failed, reason: %v \n", err)
+		log.Panicf("Read response failed, reason: %v", err)
 	}
 
 	manifestResponse := &ManifestListInfo{}
 	if err := json.Unmarshal(body, &manifestResponse); err != nil {
-		log.Fatalf("Parse response failed, reason: %v \n", err)
+		log.Panicf("Parse response failed, reason: %v", err)
 	}
 
 	return *manifestResponse

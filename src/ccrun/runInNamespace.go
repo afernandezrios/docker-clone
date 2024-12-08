@@ -1,7 +1,7 @@
 package ccrun
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"syscall"
@@ -30,7 +30,7 @@ func runInNewUTSNamespace(args []string) (e error) {
 
 	// TODO: delete cgroup on exit?
 	cgroup := NewCgroup()
-	fmt.Printf("New cgroup created: %s\n", cgroup)
+	log.Printf("New cgroup created: %s\n", cgroup)
 
 	cmd := exec.Command("/proc/self/exe", append([]string{"run"}, args[0:]...)...)
 	cmd.Stderr = os.Stderr
@@ -60,7 +60,7 @@ func runInNewUTSNamespace(args []string) (e error) {
 	}
 
 	if err := cmd.Run(); err != nil {
-		fmt.Printf(" %s\n", err)
+		log.Printf(" %s\n", err)
 		return err
 	}
 

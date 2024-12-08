@@ -2,7 +2,6 @@ package ccrun
 
 import (
 	"log"
-	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -19,6 +18,5 @@ func Execute() {
 	rootCmd.SilenceErrors = true
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatal(err)
-		os.Exit(1)
 	}
 }

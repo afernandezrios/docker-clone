@@ -4,8 +4,6 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -34,41 +32,41 @@ func (c *Client) DownloadLayers(manifest Manifest) (path string) {
 	resp, err := client.Do(req)
 
 	if err != nil {
-		panic(err)
+		log.Panicf("Cannot download image layers: %v", err)
 	}
 
 	if resp.StatusCode != 200 {
-		panic(errors.New("Manifest layers not found: " + resp.Status))
+		log.Panicf("Manifest layers not found: %s", resp.Status)
 	}
 
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		panic(err)
+		log.Panicf("Cannot read layers response: %v", err)
 	}
 
 	layersData := &ManifestLayersData{}
 	if err := json.Unmarshal(body, &layersData); err != nil {
-		panic(err)
+		log.Panicf("Cannot parse layers response: %v", err)
 	}
 
 	downloadPath := "../container-dir/"
 	err = os.MkdirAll(downloadPath, 0777)
 	if err != nil {
-		panic(err)
+		log.Panicf("Cannot create directories for the downloaded content: %v", err)
 	}
 
 	// Download layers
 	for _, layer := range layersData.Layers {
-		fmt.Printf("Downloading layer: %s\n", layer.Digest)
+		log.Printf("Downloading layer: %s\n", layer.Digest)
 		filePath := downloadPath + layer.Digest + getExtension(layer)
 		c.DownloadBlob(layer.Digest, filePath)
 		unzipLayer(filePath, downloadPath)
 	}
 
 	// Download config
-	fmt.Printf("Downloading config: %s\n", layersData.Config.Digest)
+	log.Printf("Downloading config: %s\n", layersData.Config.Digest)
 	configPath := downloadPath + "config" + getExtension(layersData.Config)
 	c.DownloadBlob(layersData.Config.Digest, configPath)
 
@@ -81,8 +79,7 @@ func (c *Client) DownloadBlob(digest string, filePath string) string {
 
 	out, err := os.Create(filePath)
 	if err != nil {
-		log.Fatalf("Error creating layer file: %s", err)
-		panic(err)
+		log.Panicf("Error creating layer file: %s", err)
 	}
 	defer out.Close()
 
@@ -93,21 +90,18 @@ func (c *Client) DownloadBlob(digest string, filePath string) string {
 	resp, err := client.Do(req)
 
 	if err != nil {
-		log.Fatalf("Error downloading layer: %s", err)
-		panic(err)
+		log.Panicf("Error downloading layer: %s", err)
 	}
 
 	if resp.StatusCode != 200 {
-		log.Fatalf("Layer blob not found: " + resp.Status)
-		panic(errors.New("Layer blob not found: " + resp.Status))
+		log.Panicf("Layer blob not found: " + resp.Status)
 	}
 
 	defer resp.Body.Close()
 
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
-		log.Fatal(err)
-		panic(err)
+		log.Panicf("Cannot copy blob in path '%s': %v", filePath, err)
 	}
 	return filePath
 }
@@ -123,7 +117,7 @@ func getExtension(blobInfo BlobInfo) string {
 		// Container config JSON
 		return ".json"
 	default:
-		fmt.Println("MediaType not implemented: " + blobInfo.MediaType)
+		log.Println("MediaType not implemented: " + blobInfo.MediaType)
 		return ""
 	}
 }
@@ -132,16 +126,14 @@ func unzipLayer(zipPath string, destPath string) {
 	// Open the gzipped tar file
 	file, err := os.Open(zipPath)
 	if err != nil {
-		log.Fatalf("Error opening zip layer: %s\n", err)
-		panic(err)
+		log.Panicf("Error opening zip layer: %s\n", err)
 	}
 	defer file.Close()
 
 	// Create a gzip reader
 	gzipReader, err := gzip.NewReader(file)
 	if err != nil {
-		log.Fatalf("Error creating gzip reader: %s\n", err)
-		panic(err)
+		log.Panicf("Error creating gzip reader: %s\n", err)
 	}
 	defer gzipReader.Close()
 
@@ -155,8 +147,7 @@ func unzipLayer(zipPath string, destPath string) {
 			break // End of archive
 		}
 		if err != nil {
-			log.Fatalf("Error iterating files in tar archive: %s\n", err)
-			panic(err)
+			log.Panicf("Error iterating files in tar archive: %s\n", err)
 		}
 
 		// Handle the file based on its type
@@ -164,33 +155,32 @@ func unzipLayer(zipPath string, destPath string) {
 		case tar.TypeDir:
 			// Create directory
 			if err := os.MkdirAll(destPath+header.Name, os.FileMode(header.Mode)); err != nil {
-				log.Fatalf("Directory %s cannot be created: %s\n", header.Name, err)
-				panic(err)
+				log.Printf("Directory %s cannot be created: %s\n", header.Name, err)
 			}
 		case tar.TypeReg:
 			// Create the file with the specified permissions
 			outFile, err := os.OpenFile(destPath+header.Name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777)
 			if err != nil {
-				fmt.Println("Error creating file:", err)
+				log.Println("Error creating file:", err)
 			}
 			defer outFile.Close()
 
 			// Copy file content
 			if _, err := io.Copy(outFile, tarReader); err != nil {
-				fmt.Println(err)
+				log.Println(err)
 			}
 		case tar.TypeSymlink:
 			// Create symlink
 			if err := os.Symlink(header.Linkname, destPath+header.Name); err != nil {
-				fmt.Println(err)
+				log.Println(err)
 			}
 		case tar.TypeLink:
 			// Create hard link
 			if err := os.Link(destPath+header.Linkname, destPath+header.Name); err != nil {
-				fmt.Println(err)
+				log.Println(err)
 			}
 		default:
-			fmt.Printf("Unable to handle file type %c\n", header.Typeflag)
+			log.Printf("Unable to handle file type %c\n", header.Typeflag)
 		}
 	}
 }

@@ -1,7 +1,7 @@
 package docker
 
 import (
-	"fmt"
+	"log"
 	"regexp"
 	"strings"
 )
@@ -36,10 +36,10 @@ func paramsExtractor(headerParams []string) map[string]string {
 	for _, value := range headerParams {
 		match := paramRegex.FindStringSubmatch(value)
 		if len(match) != 3 {
-			fmt.Printf("Header params not expected: %s\n", value)
+			log.Printf("Header params not expected: %s\n", value)
 		} else {
 			params[match[1]] = match[2]
-			fmt.Printf("params added: %s = %s\n", match[0], match[1])
+			log.Printf("params added: %s = %s\n", match[0], match[1])
 		}
 	}
 

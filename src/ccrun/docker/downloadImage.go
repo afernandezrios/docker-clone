@@ -2,11 +2,9 @@ package docker
 
 import (
 	"errors"
-	"log"
 	"net/http"
 )
 
-// Download image
 func DownloadImage() {
 
 	client := NewClient(&http.Client{})
@@ -16,12 +14,7 @@ func DownloadImage() {
 	if errors.As(err, &unauthErr) {
 		authInfo := ParseWwwAuthentication(unauthErr.authInfo)
 		client.Authorize(authInfo)
-
-		manifest, err := client.PullManifestWithAuth()
-		if err != nil {
-			log.Fatal(err)
-		}
-
+		manifest := client.PullManifestWithAuth()
 		client.DownloadLayers(*manifest)
 	}
 }
