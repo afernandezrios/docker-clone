@@ -12,16 +12,21 @@ type AuthenticationInfo struct {
 	Scope   string
 }
 
-// realm="https://auth.docker.io/token",service="registry.docker.io",scope="repository:alpine/git:pull"
+// ParseWwwAuthentication parse the authentication data received in a WWW-Authenticate header.
+// The expected format input is: realm="https://auth.docker.io/token",service="registry.docker.io",scope="repository:alpine/git:pull"
+//
+// See also: [WWW-Authenticate doc].
+//
+// [WWW-Authenticate doc]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/WWW-Authenticate
 func ParseWwwAuthentication(wwwAuthHeader string) (authInfo AuthenticationInfo) {
 
-	headerParams := getLastElement(strings.Split(wwwAuthHeader, " "))
-	params := paramsExtractor(strings.Split(headerParams, ","))
+	headerValue := getLastElement(strings.Split(wwwAuthHeader, " "))
+	challenges := challengesExtractor(strings.Split(headerValue, ","))
 
 	return AuthenticationInfo{
-		Realm:   params["realm"],
-		Service: params["service"],
-		Scope:   params["scope"],
+		Realm:   challenges["realm"],
+		Service: challenges["service"],
+		Scope:   challenges["scope"],
 	}
 }
 
@@ -29,19 +34,16 @@ func getLastElement(stringArray []string) string {
 	return stringArray[len(stringArray)-1]
 }
 
-func paramsExtractor(headerParams []string) map[string]string {
-	params := make(map[string]string)
-	var paramRegex = regexp.MustCompile(`(.+)="(.+)"`)
+// expected input: realm="https://auth.docker.io/token",service="registry.docker.io",scope="repository:alpine/git:pull"
+func challengesExtractor(headerValue []string) map[string]string {
+	challenges := make(map[string]string)
+	var challengeRegex = regexp.MustCompile(`(.+)="(.+)"`)
 
-	for _, value := range headerParams {
-		match := paramRegex.FindStringSubmatch(value)
-		if len(match) != 3 {
-			log.Printf("Header params not expected: %s\n", value)
-		} else {
-			params[match[1]] = match[2]
-			log.Printf("params added: %s = %s\n", match[0], match[1])
-		}
+	for _, value := range headerValue {
+		match := challengeRegex.FindStringSubmatch(value)
+		log.Printf("Challenge added: %s\n", match[0])
+		challenges[match[1]] = match[2]
 	}
 
-	return params
+	return challenges
 }

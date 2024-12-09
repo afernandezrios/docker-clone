@@ -12,9 +12,9 @@ type LoginData struct {
 
 // Login into docker registry. Returns token.
 // Expected input example:
-// realm:="https://auth.docker.io/token";
-// service:="registry.docker.io";
-// scope:="repository:alpine/git:pull";
+// 	- realm:="https://auth.docker.io/token";
+// 	- service:="registry.docker.io";
+// 	- scope:="repository:alpine/git:pull";
 // See https://distribution.github.io/distribution/spec/auth/token/#how-to-authenticate
 func (c *Client) Login(authInfo AuthenticationInfo) *LoginData {
 
