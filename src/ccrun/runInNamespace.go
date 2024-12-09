@@ -28,7 +28,8 @@ func runInNewUTSNamespace(args []string) (e error) {
 
 	// Download docker image files (manifest + layers + config)
 	downloadDir := "../container-dir/"
-	docker.DownloadImage(downloadDir)
+	imageName:= "alpine/git"
+	docker.DownloadImage(downloadDir, imageName)
 	
 	// Remove all container files when finished
 	defer func() {

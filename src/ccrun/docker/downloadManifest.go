@@ -10,9 +10,9 @@ import (
 )
 
 // Pull manifest for Alpine image without auth
-func (c *Client) PullManifest() (*Manifest, error) {
+func (c *Client) PullManifest(imageName string) (*Manifest, error) {
 
-	alpineManifestPath := "https://registry.hub.docker.com/v2/alpine/git/manifests/latest"
+	alpineManifestPath := fmt.Sprintf("https://registry.hub.docker.com/v2/%s/manifests/latest", imageName)
 	req, _ := http.NewRequest("GET", alpineManifestPath, nil)
 	resp, err := c.client.Do(req)
 
@@ -31,9 +31,9 @@ func (c *Client) PullManifest() (*Manifest, error) {
 }
 
 // Pull manifest for Alpine image
-func (c *Client) PullManifestWithAuth() *Manifest {
+func (c *Client) PullManifestWithAuth(imageName string) *Manifest {
 
-	alpineManifestPath := "https://registry.hub.docker.com/v2/alpine/git/manifests/latest"
+	alpineManifestPath := fmt.Sprintf("https://registry.hub.docker.com/v2/%s/manifests/latest", imageName)
 
 	req, _ := http.NewRequest("GET", alpineManifestPath, nil)
 	req.Header.Set("Authorization", "Bearer "+c.token)
