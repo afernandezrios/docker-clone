@@ -26,12 +26,26 @@ func init() {
 
 func runInNewUTSNamespace(args []string) (e error) {
 
+	// Download docker image files (manifest + layers + config)
 	docker.DownloadImage()
+	
+	// Remove all container files when finished
+	// defer os.RemoveAll(chRootPath)
+	defer func() {
+		log.Printf("Removing files in %s\n", "../container-dir")
+		// err := os.RemoveAll(chRootPath)
+		err := os.RemoveAll("../container-dir")
+		if err != nil {
+			log.Printf("%v\n", err)
+		}
+	}()
 
 	// TODO: delete cgroup on exit?
-	cgroup := NewCgroup()
+	// Create a cgroup to limit container resources (memory, max cpu, ...)
+	cgroup := CreateCgroup()
 	log.Printf("New cgroup created: %s\n", cgroup)
 
+	// Rerun same command (/proc/self/exe) in a new namespaces.
 	cmd := exec.Command("/proc/self/exe", append([]string{"run"}, args[0:]...)...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout

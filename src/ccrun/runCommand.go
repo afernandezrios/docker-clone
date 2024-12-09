@@ -30,16 +30,19 @@ func runCommand(args []string) (e error) {
 	containerConfig := getContainerConfig()
 
 	syscall.Sethostname([]byte("new-hostname"))
-	
-	chRootPath:= "../container-dir"
+
+	chRootPath := "../container-dir"
 	log.Printf("Root path: %s\n", chRootPath)
 	syscall.Chroot(chRootPath)
-	
+
 	chDirPath := containerConfig.Config.WorkingDir
 	log.Printf("Working dir: %s\n", chDirPath)
 	syscall.Chdir(chDirPath)
-	
+
 	syscall.Mount("proc", "proc", "proc", 0, "")
+	defer func() {
+		syscall.Unmount("/proc", 0)
+	}()
 
 	// Export env variables. We must update Path variable
 	// If not, probably it doesn't found any command because
@@ -57,11 +60,9 @@ func runCommand(args []string) (e error) {
 
 	if err := cmd.Run(); err != nil {
 		log.Printf("Error running command. %s\n", err)
-		syscall.Unmount("/proc", 0)
 		return err
 	}
 
-	syscall.Unmount("/proc", 0)
 	return nil
 }
 
@@ -79,7 +80,7 @@ type ConfigData struct {
 func getContainerConfig() ContainerConfig {
 	byteValue, err := os.ReadFile("../container-dir/config.json")
 	if err != nil {
-		panic(err)
+		log.Panicf("Error reading configuration file: %v", err)
 	}
 	var containerConfig ContainerConfig
 	json.Unmarshal(byteValue, &containerConfig)

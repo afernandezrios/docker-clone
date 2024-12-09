@@ -8,7 +8,7 @@ import (
 )
 
 // Creates Container Cgroup (containercg) manually
-func NewCgroup() (cgroupPath string) {
+func CreateCgroup() (cgroupPath string) {
 
 	// cgroup location in Ubuntu
 	containercg := "/sys/fs/cgroup/containercg"
