@@ -10,6 +10,15 @@ cd src
 sudo go run main.go ccrun sh
 ```
 
+### Build and run program
+
+```sh
+cd src
+go build
+sudo ./docker-clone ccrun sh
+```
+
+
 ### User namespace
 
 To run the container rootless we need to create a new User namespace. This way we avoid that the root user within the container has root privileges on the host.
