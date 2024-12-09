@@ -5,7 +5,9 @@ import (
 	"net/http"
 )
 
-func DownloadImage() {
+// DownloadImage downloads all the neccessary files related to an 
+// image: manifest, layers and config files.
+func DownloadImage(downloadPath string) {
 
 	client := NewClient(&http.Client{})
 	_, err := client.PullManifest()
@@ -15,6 +17,6 @@ func DownloadImage() {
 		authInfo := ParseWwwAuthentication(unauthErr.authInfo)
 		client.Authorize(authInfo)
 		manifest := client.PullManifestWithAuth()
-		client.DownloadLayers(*manifest)
+		client.DownloadLayers(*manifest, downloadPath)
 	}
 }

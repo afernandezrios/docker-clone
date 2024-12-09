@@ -27,14 +27,13 @@ func init() {
 func runInNewUTSNamespace(args []string) (e error) {
 
 	// Download docker image files (manifest + layers + config)
-	docker.DownloadImage()
+	downloadDir := "../container-dir/"
+	docker.DownloadImage(downloadDir)
 	
 	// Remove all container files when finished
-	// defer os.RemoveAll(chRootPath)
 	defer func() {
-		log.Printf("Removing files in %s\n", "../container-dir")
-		// err := os.RemoveAll(chRootPath)
-		err := os.RemoveAll("../container-dir")
+		log.Printf("Removing files in %s\n", downloadDir)
+		err := os.RemoveAll(downloadDir)
 		if err != nil {
 			log.Printf("%v\n", err)
 		}

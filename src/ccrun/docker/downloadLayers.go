@@ -23,7 +23,7 @@ type BlobInfo struct {
 	Size      int    `json:"size"`
 }
 
-func (c *Client) DownloadLayers(manifest Manifest) (path string) {
+func (c *Client) DownloadLayers(manifest Manifest, downloadPath string) (path string) {
 
 	req, _ := http.NewRequest("GET", "https://registry.hub.docker.com/v2/alpine/git/manifests/"+manifest.Digest, nil)
 	req.Header.Set("Authorization", "Bearer "+c.token)
@@ -51,7 +51,6 @@ func (c *Client) DownloadLayers(manifest Manifest) (path string) {
 		log.Panicf("Cannot parse layers response: %v", err)
 	}
 
-	downloadPath := "../container-dir/"
 	err = os.MkdirAll(downloadPath, 0777)
 	if err != nil {
 		log.Panicf("Cannot create directories for the downloaded content: %v", err)

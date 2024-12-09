@@ -3,11 +3,11 @@ https://codingchallenges.fyi/challenges/challenge-docker/
 
 ## How to run
 
-`ccrun` is a cli tool to run commands. For example, to run "ls ." command:
+`ccrun` is a cli tool to run commands inside a container. For example, to run a shell inside the container:
 
 ```bash
 cd src
-sudo go run main.go ccrun /bin/busybox ls .
+sudo go run main.go ccrun sh
 ```
 
 ### User namespace
