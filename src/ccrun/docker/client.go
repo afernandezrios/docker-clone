@@ -17,7 +17,7 @@ func NewClient(client *http.Client) *Client {
 	}
 }
 
-// DownloadImage downloads all the neccessary files related to an 
+// DownloadImage downloads all the neccessary files related to an
 // image: manifest, layers and config files.
 func DownloadImage(downloadPath string, imageName string) {
 
@@ -31,7 +31,7 @@ func DownloadImage(downloadPath string, imageName string) {
 		authInfo := ParseWwwAuthentication(unauthErr.authInfo)
 		client.Authorize(authInfo)
 		manifest := client.PullManifestWithAuth(imageName)
-		client.DownloadLayers(*manifest, downloadPath)
+		client.DownloadLayers(*manifest, downloadPath, imageName)
 	}
 }
 

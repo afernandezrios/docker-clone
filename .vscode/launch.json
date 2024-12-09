@@ -12,7 +12,8 @@
             "program": "${workspaceFolder}/src",
             "args": [
                 "ccrun",
-                "/bin/sh"
+                "library/alpine",
+                "sh"
             ],
             "console": "integratedTerminal",
             "asRoot": true

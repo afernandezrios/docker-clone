@@ -28,7 +28,7 @@ func runInNewUTSNamespace(args []string) (e error) {
 
 	// Download docker image files (manifest + layers + config)
 	downloadDir := "../container-dir/"
-	imageName:= "alpine/git"
+	imageName:= args[0]
 	docker.DownloadImage(downloadDir, imageName)
 	
 	// Remove all container files when finished
@@ -46,7 +46,7 @@ func runInNewUTSNamespace(args []string) (e error) {
 	log.Printf("New cgroup created: %s\n", cgroup)
 
 	// Rerun same command (/proc/self/exe) in a new namespaces.
-	cmd := exec.Command("/proc/self/exe", append([]string{"run"}, args[0:]...)...)
+	cmd := exec.Command("/proc/self/exe", append([]string{"run"}, args[1:]...)...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	cmd.Stdin = os.Stdin

@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -23,9 +24,10 @@ type BlobInfo struct {
 	Size      int    `json:"size"`
 }
 
-func (c *Client) DownloadLayers(manifest Manifest, downloadPath string) (path string) {
+func (c *Client) DownloadLayers(manifest Manifest, downloadPath string, imageName string) (path string) {
 
-	req, _ := http.NewRequest("GET", "https://registry.hub.docker.com/v2/alpine/git/manifests/"+manifest.Digest, nil)
+	layerPath := fmt.Sprintf("https://registry.hub.docker.com/v2/%s/manifests/%s", imageName, manifest.Digest)
+	req, _ := http.NewRequest("GET", layerPath, nil)
 	req.Header.Set("Authorization", "Bearer "+c.token)
 
 	client := &http.Client{}
@@ -60,21 +62,21 @@ func (c *Client) DownloadLayers(manifest Manifest, downloadPath string) (path st
 	for _, layer := range layersData.Layers {
 		log.Printf("Downloading layer: %s\n", layer.Digest)
 		filePath := downloadPath + layer.Digest + getExtension(layer)
-		c.DownloadBlob(layer.Digest, filePath)
+		c.DownloadBlob(layer.Digest, filePath, imageName)
 		unzipLayer(filePath, downloadPath)
 	}
 
 	// Download config
 	log.Printf("Downloading config: %s\n", layersData.Config.Digest)
 	configPath := downloadPath + "config" + getExtension(layersData.Config)
-	c.DownloadBlob(layersData.Config.Digest, configPath)
+	c.DownloadBlob(layersData.Config.Digest, configPath, imageName)
 
 	return downloadPath
 }
 
 // For simplicity, all documents will be downloaded in a hardcoded path and cache headers are ignored
 // Doc: https://distribution.github.io/distribution/spec/api/#pulling-a-layer
-func (c *Client) DownloadBlob(digest string, filePath string) string {
+func (c *Client) DownloadBlob(digest string, filePath string, imageName string) string {
 
 	out, err := os.Create(filePath)
 	if err != nil {
@@ -82,7 +84,8 @@ func (c *Client) DownloadBlob(digest string, filePath string) string {
 	}
 	defer out.Close()
 
-	req, _ := http.NewRequest("GET", "https://registry.hub.docker.com/v2/alpine/git/blobs/"+digest, nil)
+	blobPath := fmt.Sprintf("https://registry.hub.docker.com/v2/%s/blobs/%s", imageName, digest)
+	req, _ := http.NewRequest("GET", blobPath, nil)
 	req.Header.Set("Authorization", "Bearer "+c.token)
 
 	client := &http.Client{}
