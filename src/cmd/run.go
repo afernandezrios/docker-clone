@@ -1,12 +1,13 @@
 package cmd
 
 import (
-	"encoding/json"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
 	"syscall"
+
+	"github.com/afernandezrios/docker-clone/config"
 
 	"github.com/spf13/cobra"
 )
@@ -23,7 +24,7 @@ var runCmd = &cobra.Command{
 
 func runCommand(args []string) (e error) {
 
-	containerConfig := getContainerConfig()
+	containerConfig := config.GetContainer()
 
 	syscall.Sethostname([]byte("new-hostname"))
 
@@ -60,26 +61,4 @@ func runCommand(args []string) (e error) {
 	}
 
 	return nil
-}
-
-type ContainerConfig struct {
-	Config ConfigData `json:"config"`
-}
-
-type ConfigData struct {
-	Env        []string `json:"Env"`
-	Entrypoint []string `json:"Entrypoint"`
-	Volumes    []string `json:"Volumes"`
-	WorkingDir string   `json:"WorkingDir"`
-}
-
-func getContainerConfig() ContainerConfig {
-	byteValue, err := os.ReadFile("../container-dir/config.json")
-	if err != nil {
-		log.Panicf("Error reading configuration file: %v", err)
-	}
-	var containerConfig ContainerConfig
-	json.Unmarshal(byteValue, &containerConfig)
-
-	return containerConfig
 }
