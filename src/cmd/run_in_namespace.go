@@ -13,7 +13,7 @@ import (
 
 var runInNamespaceCmd = &cobra.Command{
 	Use:   "ccrun",
-	Short: "ccrun command",
+	Short: "ccrun command in container",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
