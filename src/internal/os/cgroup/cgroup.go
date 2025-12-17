@@ -1,4 +1,4 @@
-package ccrun
+package cgroup
 
 import (
 	"log"
@@ -8,7 +8,7 @@ import (
 )
 
 // Creates Container Cgroup (containercg) manually
-func CreateCgroup() (cgroupPath string) {
+func New() (cgroupPath string) {
 
 	// cgroup location in Ubuntu
 	containercg := "/sys/fs/cgroup/containercg"

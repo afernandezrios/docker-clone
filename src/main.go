@@ -1,7 +1,7 @@
 package main
 
-import "github.com/afernandezrios/docker-clone/ccrun"
+import "github.com/afernandezrios/docker-clone/cmd"
 
 func main() {
-	ccrun.Execute()
+	cmd.Execute()
 }

@@ -1,4 +1,4 @@
-package ccrun
+package cmd
 
 import (
 	"log"
@@ -6,7 +6,8 @@ import (
 	"os/exec"
 	"syscall"
 
-	"github.com/afernandezrios/docker-clone/ccrun/docker"
+	"github.com/afernandezrios/docker-clone/internal/docker"
+	"github.com/afernandezrios/docker-clone/internal/os/cgroup"
 	"github.com/spf13/cobra"
 )
 
@@ -42,7 +43,7 @@ func runInNewUTSNamespace(args []string) (e error) {
 
 	// TODO: delete cgroup on exit?
 	// Create a cgroup to limit container resources (memory, max cpu, ...)
-	cgroup := CreateCgroup()
+	cgroup := cgroup.New()
 	log.Printf("New cgroup created: %s\n", cgroup)
 
 	// Rerun same command (/proc/self/exe) in a new namespaces.

@@ -1,4 +1,4 @@
-package ccrun
+package cmd
 
 import (
 	"encoding/json"
@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var ccrunCmd = &cobra.Command{
+var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: "run command",
 	Args:  cobra.MinimumNArgs(1),
@@ -22,7 +22,7 @@ var ccrunCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(ccrunCmd)
+	rootCmd.AddCommand(runCmd)
 }
 
 func runCommand(args []string) (e error) {

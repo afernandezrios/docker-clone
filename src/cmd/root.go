@@ -1,4 +1,4 @@
-package ccrun
+package cmd
 
 import (
 	"log"
