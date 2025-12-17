@@ -14,6 +14,11 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+func init() {
+	rootCmd.AddCommand(runInNamespaceCmd)
+	rootCmd.AddCommand(runCmd)
+}
+
 func Execute() {
 	rootCmd.SilenceErrors = true
 	if err := rootCmd.Execute(); err != nil {

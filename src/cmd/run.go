@@ -21,10 +21,6 @@ var runCmd = &cobra.Command{
 	},
 }
 
-func init() {
-	rootCmd.AddCommand(runCmd)
-}
-
 func runCommand(args []string) (e error) {
 
 	containerConfig := getContainerConfig()

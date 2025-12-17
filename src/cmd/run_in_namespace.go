@@ -21,10 +21,6 @@ var runInNamespaceCmd = &cobra.Command{
 	},
 }
 
-func init() {
-	rootCmd.AddCommand(runInNamespaceCmd)
-}
-
 func runInNewUTSNamespace(args []string) (e error) {
 
 	// Download docker image files (manifest + layers + config)
