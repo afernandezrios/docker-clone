@@ -17,7 +17,7 @@ func (c *Client) PullManifest(imageName string) (*Manifest, error) {
 	resp, err := c.client.Do(req)
 
 	if err != nil {
-		log.Panicf("Cannot get authorization to pull alpine repository: %s \n", err)
+		return nil, fmt.Errorf("Cannot get authorization to pull alpine repository: %s \n", err)
 	}
 
 	switch status := resp.StatusCode; status {
@@ -31,7 +31,7 @@ func (c *Client) PullManifest(imageName string) (*Manifest, error) {
 }
 
 // Pull manifest for Alpine image
-func (c *Client) PullManifestWithAuth(imageName string) *Manifest {
+func (c *Client) PullManifestWithAuth(imageName string) (*Manifest, error) {
 
 	alpineManifestPath := fmt.Sprintf("https://registry.hub.docker.com/v2/%s/manifests/latest", imageName)
 
@@ -41,17 +41,17 @@ func (c *Client) PullManifestWithAuth(imageName string) *Manifest {
 	resp, err := c.client.Do(req)
 
 	if err != nil {
-		log.Panicf("Cannot get authorization to pull alpine repository: %v", ErrInternalError)
+		return nil, fmt.Errorf("Cannot get authorization to pull alpine repository: %v", ErrInternalError)
 	}
 
 	if resp.StatusCode != 200 {
-		log.Panicf("Cannot get image manifest: %s \n", resp.Status)
+		return nil, fmt.Errorf("Cannot get image manifest: %s \n", resp.Status)
 	}
 
 	manifestList := processManifestList(resp)
 	validManifest := getManifestForCurrentOS(manifestList)
 
-	return validManifest
+	return validManifest, nil
 }
 
 type ManifestListInfo struct {

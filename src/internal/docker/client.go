@@ -2,7 +2,7 @@ package docker
 
 import (
 	"errors"
-	"log"
+    "fmt"
 	"net/http"
 )
 
@@ -11,30 +11,52 @@ type Client struct {
 	token  string
 }
 
-func NewClient(client *http.Client) *Client {
+func New(client *http.Client) *Client {
 	return &Client{
 		client: client,
 	}
 }
 
-// DownloadImage downloads all the neccessary files related to an
+// DownloadImage downloads all the necessary files related to an
 // image: manifest, layers and config files.
-func DownloadImage(downloadPath string, imageName string) {
+func (c *Client) DownloadImage(downloadPath, imageName string) error {
+	
+    manifest, err := c.pullManifest(imageName)
 
-	log.Printf("Downloading image: %s\n", imageName)
+    if err != nil {
+        return fmt.Errorf("pulling manifest: %w", err)
+    }
 
-	client := NewClient(&http.Client{})
-	_, err := client.PullManifest(imageName)
+    c.DownloadLayers(*manifest, downloadPath, imageName)
+    return nil
+}
+
+func (c *Client) pullManifest(imageName string) (*Manifest, error) {
+    manifest, err := c.PullManifest(imageName)
+
+    if err == nil {
+        return manifest, err
+    }
 
 	var unauthErr UnauthorizedError
 	if errors.As(err, &unauthErr) {
 		authInfo := ParseWwwAuthentication(unauthErr.authInfo)
-		client.Authorize(authInfo)
-		manifest := client.PullManifestWithAuth(imageName)
-		client.DownloadLayers(*manifest, downloadPath, imageName)
-	}
+		
+        if err := c.Authorize(authInfo); err != nil {
+            return nil, fmt.Errorf("authorization failed: %w", err)
+        }
+
+		return c.PullManifestWithAuth(imageName)
+	}  else {
+        return nil, fmt.Errorf("unexpected error: %w", err)
+    }
 }
 
-func (c *Client) Authorize(authInfo AuthenticationInfo) {
-	c.token = c.Login(authInfo).Token
+func (c *Client) Authorize(authInfo AuthenticationInfo) error {
+	loginResp, err := c.Login(authInfo)
+	if err != nil {
+		return fmt.Errorf("login failed: %w", err)
+	}
+	c.token = loginResp.Token
+	return nil
 }

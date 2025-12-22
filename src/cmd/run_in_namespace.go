@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"syscall"
 	"fmt"
+	"net/http"
 
 	"github.com/afernandezrios/docker-clone/internal/docker"
 	"github.com/afernandezrios/docker-clone/internal/os/cgroup"
@@ -31,7 +32,10 @@ func runInNewUTSNamespace(args []string) (e error) {
 	// Download docker image files (manifest + layers + config)
 	downloadDir := "../container-dir/"
 	imageName:= args[0]
-	docker.DownloadImage(downloadDir, imageName)
+
+	dockerClient := docker.New(&http.Client{})
+
+	dockerClient.DownloadImage(downloadDir, imageName)
 	
 	// Remove all container files when finished
 	defer func() {
