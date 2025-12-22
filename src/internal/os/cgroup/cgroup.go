@@ -35,3 +35,11 @@ func New() (cgroupPath string) {
 
 	return containercg
 }
+
+func AddProcess(cgroupPath string, pid int) error {
+	return os.WriteFile(
+		filepath.Join(cgroupPath, "cgroup.procs"),
+		[]byte(strconv.Itoa(pid)),
+		0644,
+	)
+}
