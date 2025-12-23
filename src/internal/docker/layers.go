@@ -66,8 +66,6 @@ func (c *Client) extractLayers(resp *http.Response, downloadPath string, imageNa
 		return "", fmt.Errorf("cannot create directories to store image content: %v", err)
 	}
 
-	c.downloadLayers(layersData, downloadPath, imageName)
-
 	if err := c.downloadLayers(layersData, downloadPath, imageName); err != nil {
 		return "", err
 	}
