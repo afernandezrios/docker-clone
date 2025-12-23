@@ -38,7 +38,7 @@ func (c *Client) Login(authInfo AuthenticationInfo) (*LoginData, error) {
 
 	req, err := http.NewRequest("GET", authInfo.Realm, nil)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot create login request: %v", err)
+		return nil, fmt.Errorf("cannot create login request: %v", err)
 	}
 
 	reqUrl := req.URL
@@ -49,12 +49,12 @@ func (c *Client) Login(authInfo AuthenticationInfo) (*LoginData, error) {
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to submit login request: %v", err)
+		return nil, fmt.Errorf("failed to submit login request: %v", err)
 	}
 
 	var response *LoginData
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, fmt.Errorf("Failed to decode login response: %v", err)
+		return nil, fmt.Errorf("failed to decode login response: %v", err)
 	}
 
 	return response, nil

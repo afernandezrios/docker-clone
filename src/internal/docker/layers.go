@@ -9,6 +9,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
 type ManifestLayersData struct {
@@ -136,17 +138,52 @@ func unzipLayer(zipPath string, destPath string) error {
 }
 
 func handleLayerFile(header *tar.Header, destPath string, tarReader *tar.Reader) {
+	completeFilePath := header.Name
+	fileName := filepath.Base(completeFilePath)
+
+	// Documentation about whiteout files: https://specs.opencontainers.org/image-spec/layer/#whiteouts
+	if fileName == ".wh..wh..opq" {
+		handleOpaqueWhiteoutFile(completeFilePath, destPath)
+		return
+	}
+	// Handle regular whiteout
+	if strings.HasPrefix(fileName, ".wh.") {
+		handleRegularWhiteoutFile(fileName, completeFilePath, destPath)
+		return
+	}
+
+	newFilePath := filepath.Join(destPath, completeFilePath)
+	handleCreationFile(header, newFilePath, tarReader, destPath)
+}
+
+func handleRegularWhiteoutFile(fileName string, completeFilePath string, destPath string) {
+	log.Printf("Handling regular whiteout: %s\n", fileName)
+	originalFileName := strings.TrimPrefix(fileName, ".wh.")
+	pathToDelete := filepath.Join(destPath, filepath.Dir(completeFilePath), originalFileName)
+	os.RemoveAll(pathToDelete)
+}
+
+func handleOpaqueWhiteoutFile(completeFilePath string, destPath string) {
+	log.Printf("Handling opaque whiteout: %s\n", completeFilePath)
+	dir := filepath.Join(destPath, filepath.Dir(completeFilePath))
+	entries, _ := os.ReadDir(dir)
+	for _, e := range entries {
+		os.RemoveAll(filepath.Join(dir, e.Name()))
+	}
+}
+
+func handleCreationFile(header *tar.Header, newFilePath string, tarReader *tar.Reader, destPath string) {
 	switch header.Typeflag {
 
 	// Create directory
 	case tar.TypeDir:
-		if err := os.MkdirAll(destPath+header.Name, os.FileMode(header.Mode)); err != nil {
-			log.Printf("Directory %s cannot be created: %s\n", header.Name, err)
+		if err := os.MkdirAll(newFilePath, os.FileMode(header.Mode)); err != nil {
+			log.Printf("Directory %s cannot be created: %s\n", newFilePath, err)
 		}
 
 	// Create the file with the specified permissions
 	case tar.TypeReg:
-		outFile, err := os.OpenFile(destPath+header.Name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777)
+		outFile, err := os.OpenFile(newFilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777)
 
 		if err != nil {
 			log.Println("Error creating file:", err)
@@ -156,19 +193,29 @@ func handleLayerFile(header *tar.Header, destPath string, tarReader *tar.Reader)
 
 		// Copy file content
 		if _, err := io.Copy(outFile, tarReader); err != nil {
-			log.Println(err)
+			log.Println("Error copying file:", err)
 		}
 
 	// Create symlink
 	case tar.TypeSymlink:
-		if err := os.Symlink(header.Linkname, destPath+header.Name); err != nil {
-			log.Println(err)
+		target := header.Linkname
+		// Important to remove existing file/dir/symlink created by previous layers
+		if _, err := os.Lstat(newFilePath); err == nil {
+			if err := os.RemoveAll(newFilePath); err != nil {
+				log.Printf("Error removing existing path %s: %v\n", newFilePath, err)
+				return
+			}
+		}
+
+		if err := os.Symlink(target, newFilePath); err != nil {
+			log.Printf("Error creating symlink %s -> %s: %v\n", newFilePath, target, err)
 		}
 
 	// Create hard link
 	case tar.TypeLink:
-		if err := os.Link(destPath+header.Linkname, destPath+header.Name); err != nil {
-			log.Println(err)
+		newFilePath = filepath.Join(destPath, header.Linkname)
+		if err := os.Link(newFilePath, newFilePath); err != nil {
+			log.Println("Error creating hard link:", err)
 		}
 
 	default:
