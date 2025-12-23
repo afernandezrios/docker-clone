@@ -24,54 +24,71 @@ type BlobInfo struct {
 	Size      int    `json:"size"`
 }
 
-func (c *Client) DownloadLayers(manifest Manifest, downloadPath string, imageName string) (path string) {
+func (c *Client) DownloadLayers(manifest Manifest, downloadPath string, imageName string) (string, error) {
 
 	layerPath := fmt.Sprintf("https://registry.hub.docker.com/v2/%s/manifests/%s", imageName, manifest.Digest)
+	
 	req, _ := http.NewRequest("GET", layerPath, nil)
-	req.Header.Set("Authorization", "Bearer "+c.token)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+
+	return c.makeGetLayersRequest(req, downloadPath, imageName)
+}
+
+func (c *Client) makeGetLayersRequest(req *http.Request, downloadPath string, imageName string) (string, error) {
+	resp, err := c.client.Do(req)
 
 	if err != nil {
-		log.Panicf("Cannot download image layers: %v", err)
+		return "", fmt.Errorf("cannot download image layers: %v", err)
 	}
 
-	if resp.StatusCode != 200 {
-		log.Panicf("Manifest layers not found: %s", resp.Status)
+	switch resp.StatusCode {
+	case 200:
+		return c.extractLayers(resp, downloadPath, imageName)
+	default:
+		return "", fmt.Errorf("manifest layers not found: %s", resp.Status)
 	}
+}
 
+func (c *Client) extractLayers(resp *http.Response, downloadPath string, imageName string) (string, error) {
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Panicf("Cannot read layers response: %v", err)
+		return "", fmt.Errorf("cannot read layers response: %v", err)
 	}
 
 	layersData := &ManifestLayersData{}
 	if err := json.Unmarshal(body, &layersData); err != nil {
-		log.Panicf("Cannot parse layers response: %v", err)
+		return "", fmt.Errorf("cannot parse layers response: %v", err)
 	}
 
 	err = os.MkdirAll(downloadPath, 0777)
 	if err != nil {
-		log.Panicf("Cannot create directories for the downloaded content: %v", err)
+		return "", fmt.Errorf("cannot create directories to store image content: %v", err)
 	}
 
-	// Download layers
+	c.downloadLayers(layersData, downloadPath, imageName)
+	c.downloadConfig(layersData, downloadPath, imageName)
+
+	return downloadPath, nil
+}
+
+func (c *Client) downloadConfig(layersData *ManifestLayersData, downloadPath string, imageName string) {
+	log.Printf("Downloading config: %s\n", layersData.Config.Digest)
+	configPath := downloadPath + "config" + getExtension(layersData.Config)
+	c.DownloadBlob(layersData.Config.Digest, configPath, imageName)
+}
+
+func (c *Client) downloadLayers(layersData *ManifestLayersData, downloadPath string, imageName string) {
 	for _, layer := range layersData.Layers {
 		log.Printf("Downloading layer: %s\n", layer.Digest)
 		filePath := downloadPath + layer.Digest + getExtension(layer)
 		c.DownloadBlob(layer.Digest, filePath, imageName)
 		unzipLayer(filePath, downloadPath)
 	}
-
-	// Download config
-	log.Printf("Downloading config: %s\n", layersData.Config.Digest)
-	configPath := downloadPath + "config" + getExtension(layersData.Config)
-	c.DownloadBlob(layersData.Config.Digest, configPath, imageName)
-
-	return downloadPath
 }
 
 // For simplicity, all documents will be downloaded in a hardcoded path and cache headers are ignored
