@@ -9,7 +9,7 @@ import (
 // image: manifest, layers and config files.
 func (c *Client) DownloadImage(downloadPath, imageName string) error {
 	
-    manifest, err := c.pullManifest(imageName)
+    manifest, err := c.getManifest(imageName)
 
     if err != nil {
         return fmt.Errorf("pulling manifest: %w", err)
@@ -19,7 +19,7 @@ func (c *Client) DownloadImage(downloadPath, imageName string) error {
     return nil
 }
 
-func (c *Client) pullManifest(imageName string) (*Manifest, error) {
+func (c *Client) getManifest(imageName string) (*Manifest, error) {
     manifest, err := c.PullManifest(imageName)
 
     if err == nil {
@@ -34,7 +34,7 @@ func (c *Client) pullManifest(imageName string) (*Manifest, error) {
             return nil, fmt.Errorf("authorization failed: %w", err)
         }
 
-		return c.PullManifestWithAuth(imageName)
+		return c.PullManifest(imageName)
 	}  else {
         return nil, fmt.Errorf("unexpected error: %w", err)
     }

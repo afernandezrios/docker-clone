@@ -1,12 +1,12 @@
 package cmd
 
 import (
+	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"syscall"
-	"fmt"
-	"net/http"
 
 	"github.com/afernandezrios/docker-clone/internal/docker"
 	"github.com/afernandezrios/docker-clone/internal/os/cgroup"
@@ -31,12 +31,14 @@ func runInNewUTSNamespace(args []string) (e error) {
 
 	// Download docker image files (manifest + layers + config)
 	downloadDir := "../container-dir/"
-	imageName:= args[0]
+	imageName := args[0]
 
 	dockerClient := docker.New(&http.Client{})
 
-	dockerClient.DownloadImage(downloadDir, imageName)
-	
+	if err := dockerClient.DownloadImage(downloadDir, imageName); err != nil {
+		log.Printf("failed to download image: %v", err)
+	}
+
 	// Remove all container files when finished
 	defer func() {
 		if err := os.RemoveAll(downloadDir); err != nil {
@@ -59,10 +61,9 @@ func runInNewUTSNamespace(args []string) (e error) {
 
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 
-		Cloneflags:
-			syscall.CLONE_NEWUTS | // Isolates hostname and domain name. Allows the container to have its own hostname.
+		Cloneflags: syscall.CLONE_NEWUTS | // Isolates hostname and domain name. Allows the container to have its own hostname.
 			syscall.CLONE_NEWPID | // Creates a new PID namespace. The child becomes PID 1 inside the container.
-			syscall.CLONE_NEWNS |  // Creates a new mount namespace. Allows independent mount/unmount operations.
+			syscall.CLONE_NEWNS | // Creates a new mount namespace. Allows independent mount/unmount operations.
 			syscall.CLONE_NEWCGROUP | // Isolates cgroup membership. Required for proper container cgroup hierarchy.
 			syscall.CLONE_NEWUSER, // Creates a new user namespace. Allows “root inside container” without host root privileges.
 
@@ -70,17 +71,17 @@ func runInNewUTSNamespace(args []string) (e error) {
 
 		UidMappings: []syscall.SysProcIDMap{
 			{
-				ContainerID: 0,		   // root in container User namespace
-				HostID:	  os.Getuid(), // current user UID
-				Size:		1,
+				ContainerID: 0,           // root in container User namespace
+				HostID:      os.Getuid(), // current user UID
+				Size:        1,
 			},
 		},
 
 		GidMappings: []syscall.SysProcIDMap{
 			{
-				ContainerID: 0,		   // root in container User namespace
-				HostID:	  os.Getgid(), // current user GID
-				Size:		1,
+				ContainerID: 0,           // root in container User namespace
+				HostID:      os.Getgid(), // current user GID
+				Size:        1,
 			},
 		},
 	}
