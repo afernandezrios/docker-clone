@@ -48,20 +48,15 @@ func (c *Client) makeGetLayersRequest(req *http.Request, downloadPath string, im
 	}
 }
 
-func (c *Client) extractLayers(resp *http.Response, downloadPath string, imageName string) (string, error) {
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("cannot read layers response: %v", err)
-	}
+func (c *Client) extractLayers(response *http.Response, downloadPath string, imageName string) (string, error) {
+	defer response.Body.Close()
 
 	layersData := &ManifestLayersData{}
-	if err := json.Unmarshal(body, &layersData); err != nil {
-		return "", fmt.Errorf("cannot parse layers response: %v", err)
+	if err := json.NewDecoder(response.Body).Decode(&layersData); err != nil {
+		return "", fmt.Errorf("failed to decode layers response: %v", err)
 	}
 
-	err = os.MkdirAll(downloadPath, 0777)
+	err := os.MkdirAll(downloadPath, 0777)
 	if err != nil {
 		return "", fmt.Errorf("cannot create directories to store image content: %v", err)
 	}

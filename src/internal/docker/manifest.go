@@ -3,7 +3,6 @@ package docker
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"runtime"
 )
@@ -60,14 +59,9 @@ func (c *Client) makeGetManifestRequest(req *http.Request) (*Manifest, error) {
 func extractManifest(response *http.Response) (manifest *Manifest, err error) {
 	defer response.Body.Close()
 
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response failed: %v", err)
-	}
-
 	manifestResponse := &ManifestListInfo{}
-	if err := json.Unmarshal(body, &manifestResponse); err != nil {
-		return nil, fmt.Errorf("parse response failed: %v", err)
+	if err := json.NewDecoder(response.Body).Decode(&manifestResponse); err != nil {
+		return nil, fmt.Errorf("failed to decode manifest response: %v", err)
 	}
 
 	return getManifestForCurrentOS(*manifestResponse), nil
