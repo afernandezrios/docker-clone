@@ -11,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/afernandezrios/docker-clone/internal/appctx"
 )
 
 type ManifestLayersData struct {
@@ -20,9 +22,9 @@ type ManifestLayersData struct {
 	Layers        []BlobInfo `json:"layers"`
 }
 
-func (c *Client) DownloadLayers(manifest Manifest, downloadPath string, imageName string) (string, error) {
+func (c *Client) DownloadLayers(manifest Manifest, ctx *context.Context) (string, error) {
 
-	layerPath := fmt.Sprintf("https://registry.hub.docker.com/v2/%s/manifests/%s", imageName, manifest.Digest)
+	layerPath := fmt.Sprintf("https://registry.hub.docker.com/v2/%s/manifests/%s", ctx.ImageName, manifest.Digest)
 
 	req, _ := http.NewRequest("GET", layerPath, nil)
 
@@ -30,10 +32,10 @@ func (c *Client) DownloadLayers(manifest Manifest, downloadPath string, imageNam
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
 
-	return c.makeGetLayersRequest(req, downloadPath, imageName)
+	return c.makeGetLayersRequest(req, ctx)
 }
 
-func (c *Client) makeGetLayersRequest(req *http.Request, downloadPath string, imageName string) (string, error) {
+func (c *Client) makeGetLayersRequest(req *http.Request, ctx *context.Context) (string, error) {
 	resp, err := c.client.Do(req)
 
 	if err != nil {
@@ -42,13 +44,13 @@ func (c *Client) makeGetLayersRequest(req *http.Request, downloadPath string, im
 
 	switch resp.StatusCode {
 	case 200:
-		return c.extractLayers(resp, downloadPath, imageName)
+		return c.extractLayers(resp, ctx)
 	default:
 		return "", fmt.Errorf("manifest layers not found: %s", resp.Status)
 	}
 }
 
-func (c *Client) extractLayers(response *http.Response, downloadPath string, imageName string) (string, error) {
+func (c *Client) extractLayers(response *http.Response, ctx *context.Context) (string, error) {
 	defer response.Body.Close()
 
 	layersData := &ManifestLayersData{}
@@ -56,36 +58,36 @@ func (c *Client) extractLayers(response *http.Response, downloadPath string, ima
 		return "", fmt.Errorf("failed to decode layers response: %v", err)
 	}
 
-	err := os.MkdirAll(downloadPath, 0777)
+	err := os.MkdirAll(ctx.DownloadDir, 0777)
 	if err != nil {
 		return "", fmt.Errorf("cannot create directories to store image content: %v", err)
 	}
 
-	if err := c.downloadLayers(layersData, downloadPath, imageName); err != nil {
+	if err := c.downloadLayers(layersData, ctx); err != nil {
 		return "", err
 	}
 
-	return c.downloadConfig(layersData, downloadPath, imageName)
+	return c.downloadConfig(layersData, ctx)
 }
 
-func (c *Client) downloadConfig(layersData *ManifestLayersData, downloadPath string, imageName string) (string, error) {
+func (c *Client) downloadConfig(layersData *ManifestLayersData, ctx *context.Context) (string, error) {
 	log.Printf("Downloading config: %s\n", layersData.Config.Digest)
-	configPath := downloadPath + "config" + layersData.Config.GetExtension()
-	return c.DownloadBlob(layersData.Config.Digest, configPath, imageName)
+	configPath := ctx.DownloadDir + "config" + layersData.Config.GetExtension()
+	return c.DownloadBlob(layersData.Config.Digest, configPath, ctx.ImageName)
 }
 
-func (c *Client) downloadLayers(layersData *ManifestLayersData, downloadPath string, imageName string) error {
+func (c *Client) downloadLayers(layersData *ManifestLayersData, ctx *context.Context) error {
 
 	for _, layer := range layersData.Layers {
 		log.Printf("Downloading layer: %s\n", layer.Digest)
 
-		filePath := downloadPath + layer.Digest + layer.GetExtension()
+		filePath := ctx.DownloadDir + layer.Digest + layer.GetExtension()
 
-		if _, err := c.DownloadBlob(layer.Digest, filePath, imageName); err != nil {
+		if _, err := c.DownloadBlob(layer.Digest, filePath, ctx.ImageName); err != nil {
 			return err
 		}
 
-		if err := unzipLayer(filePath, downloadPath); err != nil {
+		if err := unzipLayer(filePath, ctx.DownloadDir); err != nil {
 			return err
 		}
 	}

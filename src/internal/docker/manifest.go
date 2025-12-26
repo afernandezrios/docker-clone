@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"runtime"
+
+	"github.com/afernandezrios/docker-clone/internal/appctx"
 )
 
 type ManifestListInfo struct {
@@ -25,8 +27,8 @@ type Platform struct {
 	Os           string `json:"os"`
 }
 
-func (c *Client) PullManifest(imageName string) (*Manifest, error) {
-	manifestPath := fmt.Sprintf("https://registry.hub.docker.com/v2/%s/manifests/latest", imageName)
+func (c *Client) PullManifest(ctx *context.Context) (*Manifest, error) {
+	manifestPath := fmt.Sprintf("https://registry.hub.docker.com/v2/%s/manifests/latest", ctx.ImageName)
 
 	req, _ := http.NewRequest("GET", manifestPath, nil)
 

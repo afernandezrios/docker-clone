@@ -22,6 +22,7 @@ func GetContainer() ContainerConfig {
 	if err != nil {
 		log.Panicf("Error reading configuration file: %v", err)
 	}
+
 	var containerConfig ContainerConfig
 	json.Unmarshal(byteValue, &containerConfig)
 
