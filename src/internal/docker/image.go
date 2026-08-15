@@ -9,18 +9,20 @@ import (
 // image: manifest, layers and config files.
 func (c *Client) DownloadImage(imageName string, downloadDir string) error {
 
-	manifest, err := c.getManifest(imageName)
-
+	manifest, err := c.pullManifest(imageName)
 	if err != nil {
 		return fmt.Errorf("pulling manifest: %w", err)
 	}
 
-	c.DownloadLayers(*manifest, imageName, downloadDir)
+	if err := c.DownloadLayers(manifest, imageName, downloadDir); err != nil {
+		return fmt.Errorf("download layers for %q: %w", imageName, err)
+	}
+
 	return nil
 }
 
-func (c *Client) getManifest(imageName string) (*Manifest, error) {
-	manifest, err := c.PullManifest(imageName)
+func (c *Client) pullManifest(imageName string) (*Manifest, error) {
+	manifest, err := c.fetchManifest(imageName)
 
 	if err == nil {
 		return manifest, nil
@@ -34,7 +36,11 @@ func (c *Client) getManifest(imageName string) (*Manifest, error) {
 			return nil, fmt.Errorf("authorization failed: %w", err)
 		}
 
-		return c.PullManifest(imageName)
+		manifest, err = c.fetchManifest(imageName)
+		if err != nil {
+			return nil, fmt.Errorf("retry manifest fetch: %w", err)
+		}
+		return manifest, nil
 	}
 
 	return nil, fmt.Errorf("unexpected error: %w", err)

@@ -25,7 +25,7 @@ type Platform struct {
 	Os           string `json:"os"`
 }
 
-func (c *Client) PullManifest(imageName string) (*Manifest, error) {
+func (c *Client) fetchManifest(imageName string) (*Manifest, error) {
 	manifestPath := fmt.Sprintf("https://registry.hub.docker.com/v2/%s/manifests/latest", imageName)
 
 	req, _ := http.NewRequest("GET", manifestPath, nil)

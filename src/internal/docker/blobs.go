@@ -16,7 +16,7 @@ type BlobInfo struct {
 
 // For simplicity, all documents will be downloaded in a hardcoded path and cache headers are ignored
 // Doc: https://distribution.github.io/distribution/spec/api/#pulling-a-layer
-func (c *Client) DownloadBlob(digest string, blobPath string, imageName string) (string, error) {
+func (c *Client) DownloadBlob(digest string, blobPath string, imageName string) error {
 
 	blobRequestPath := fmt.Sprintf("https://registry.hub.docker.com/v2/%s/blobs/%s", imageName, digest)
 	req, _ := http.NewRequest("GET", blobRequestPath, nil)
@@ -28,28 +28,28 @@ func (c *Client) DownloadBlob(digest string, blobPath string, imageName string) 
 	return c.makeGetBlobRequest(req, blobPath)
 }
 
-func (c *Client) makeGetBlobRequest(req *http.Request, blobPath string) (string, error) {
+func (c *Client) makeGetBlobRequest(req *http.Request, blobPath string) error {
 	resp, err := c.httpClient.Do(req)
 
 	if err != nil {
-		return "", fmt.Errorf("cannot download blob: %s", err)
+		return fmt.Errorf("cannot download blob: %s", err)
 	}
 
 	switch resp.StatusCode {
 	case 200:
 		return c.extractBlob(resp, blobPath)
 	default:
-		return "", fmt.Errorf("blob not found: %s", resp.Status)
+		return fmt.Errorf("blob not found: %s", resp.Status)
 	}
 }
 
-func (*Client) extractBlob(resp *http.Response, blobPath string) (string, error) {
+func (*Client) extractBlob(resp *http.Response, blobPath string) error {
 	defer resp.Body.Close()
 
 	out, err := os.Create(blobPath)
 
 	if err != nil {
-		return "", fmt.Errorf("cannot create blob file: %s", err)
+		return fmt.Errorf("cannot create blob file: %s", err)
 	}
 
 	defer out.Close()
@@ -57,10 +57,10 @@ func (*Client) extractBlob(resp *http.Response, blobPath string) (string, error)
 	_, err = io.Copy(out, resp.Body)
 
 	if err != nil {
-		return "", fmt.Errorf("cannot copy blob in path '%s': %v", blobPath, err)
+		return fmt.Errorf("cannot copy blob in path '%s': %v", blobPath, err)
 	}
 
-	return blobPath, nil
+	return nil
 }
 
 // Getting extension of the file according to: https://distribution.github.io/distribution/spec/manifest-v2-2/#media-types
