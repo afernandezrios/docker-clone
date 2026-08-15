@@ -1,14 +1,15 @@
 package cmd
 
 import (
-	"log"
+	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "ccrun",
-	Short: "Coding Challenges Runtime",
+	Short: "Coding Challenges Runtime to download and run docker images",
 	Run: func(cmd *cobra.Command, args []string) {
 
 	},
@@ -20,8 +21,8 @@ func init() {
 }
 
 func Execute() {
-	rootCmd.SilenceErrors = true
 	if err := rootCmd.Execute(); err != nil {
-		log.Fatal(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 }
