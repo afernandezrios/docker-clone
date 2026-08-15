@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -13,36 +12,31 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const containerDir = "../container-dir/"
+
 var runInNamespaceCmd = &cobra.Command{
-	Use:   "ccrun",
-	Short: "ccrun command in container",
-	Args:  cobra.MinimumNArgs(1),
+	Use:          "ccrun <image> <command> [args...]",
+	Short:        "Run a container command in isolated Linux namespaces",
+	Args:         cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cmd.SilenceUsage = true
-		return runInNewUTSNamespace(args)
+		image := args[0]
+		containerCmd := args[1:]
+
+		return launchContainer(image, containerCmd)
 	},
 }
 
-func runInNewUTSNamespace(args []string) (e error) {
+func launchContainer(image string, command []string) error {
 
-	if len(args) < 1 {
-		return fmt.Errorf("image name is required")
-	}
-
-	// Download docker image files (manifest + layers + config)
-	imageName := args[0]
-	downloadDir := "../container-dir/"
-
-	dockerClient := docker.New(&http.Client{})
-
-	if err := dockerClient.DownloadImage(imageName, downloadDir); err != nil {
-		log.Printf("failed to download image: %v", err)
+	client := docker.New(&http.Client{})
+	if err := client.DownloadImage(image, containerDir); err != nil {
+		return fmt.Errorf("download image %q: %w", image, err)
 	}
 
 	// Remove all container files when finished
 	defer func() {
-		if err := os.RemoveAll(downloadDir); err != nil {
-			log.Printf("failed to cleanup container dir: %v", err)
+		if err := os.RemoveAll(containerDir); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to cleanup container dir %s: %v\n", containerDir, err)
 		}
 	}()
 
@@ -52,14 +46,37 @@ func runInNewUTSNamespace(args []string) (e error) {
 	// Rerun same command (/proc/self/exe) in a new namespaces.
 	cmd := exec.Command(
 		"/proc/self/exe",
-		append([]string{"run"}, args[1:]...)...,
+		append([]string{"run"}, command...)...,
 	)
 
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	cmd.Stdin = os.Stdin
 
-	cmd.SysProcAttr = &syscall.SysProcAttr{
+	cmd.SysProcAttr = buildIsolationProcAttr()
+
+	// Start the container process
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start the container process: %v", err)
+	}
+
+	// Attach the process to the cgroup
+	if err := cgroup.AddProcess(cgroupPath, cmd.Process.Pid); err != nil {
+		return fmt.Errorf("failed to attach the process to the cgroup: %v", err)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("failed to wait the container process: %v", err)
+	}
+
+	// Cleanup after container exits
+	_ = os.RemoveAll(cgroupPath)
+
+	return nil
+}
+
+func buildIsolationProcAttr() *syscall.SysProcAttr {
+	return &syscall.SysProcAttr{
 
 		Cloneflags: syscall.CLONE_NEWUTS | // Isolates hostname and domain name. Allows the container to have its own hostname.
 			syscall.CLONE_NEWPID | // Creates a new PID namespace. The child becomes PID 1 inside the container.
@@ -85,23 +102,4 @@ func runInNewUTSNamespace(args []string) (e error) {
 			},
 		},
 	}
-
-	// Start the container process
-	if err := cmd.Start(); err != nil {
-		log.Printf("failed to start the container process: %v", err)
-	}
-
-	// Attach the process to the cgroup
-	if err := cgroup.AddProcess(cgroupPath, cmd.Process.Pid); err != nil {
-		log.Printf("failed to attach the process to the cgroup: %v", err)
-	}
-
-	if err := cmd.Wait(); err != nil {
-		log.Printf("failed to wait the container process: %v", err)
-	}
-
-	// Cleanup after container exits
-	_ = os.RemoveAll(cgroupPath)
-
-	return nil
 }
