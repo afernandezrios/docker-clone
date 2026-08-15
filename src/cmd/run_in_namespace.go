@@ -9,7 +9,6 @@ import (
 	"syscall"
 
 	"github.com/afernandezrios/docker-clone/internal/docker"
-	"github.com/afernandezrios/docker-clone/internal/appctx"
 	"github.com/afernandezrios/docker-clone/internal/os/cgroup"
 	"github.com/spf13/cobra"
 )
@@ -31,17 +30,18 @@ func runInNewUTSNamespace(args []string) (e error) {
 	}
 
 	// Download docker image files (manifest + layers + config)
-	ctx := context.New(args[0], "../container-dir/")
+	imageName := args[0]
+	downloadDir := "../container-dir/"
 
 	dockerClient := docker.New(&http.Client{})
 
-	if err := dockerClient.DownloadImage(ctx); err != nil {
+	if err := dockerClient.DownloadImage(imageName, downloadDir); err != nil {
 		log.Printf("failed to download image: %v", err)
 	}
 
 	// Remove all container files when finished
 	defer func() {
-		if err := os.RemoveAll(ctx.DownloadDir); err != nil {
+		if err := os.RemoveAll(downloadDir); err != nil {
 			log.Printf("failed to cleanup container dir: %v", err)
 		}
 	}()
