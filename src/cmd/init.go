@@ -46,7 +46,7 @@ func init() {
 
 func setupEnvironment(rootfs string) (func(), error) {
 
-	containerConfig := config.GetContainer(rootfs)
+	containerConfig := config.Load(rootfs)
 
 	// Isolate the environment
 	if err := container.Setup(containerConfig, rootfs); err != nil {
