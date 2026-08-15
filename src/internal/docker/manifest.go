@@ -3,8 +3,14 @@ package docker
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"runtime"
+)
+
+const (
+	baseURL = "https://registry.hub.docker.com/v2/" // TODO: make it configurable
+	imageTag = "latest" // TODO: parse from cli input parameter
 )
 
 type ManifestListInfo struct {
@@ -26,9 +32,12 @@ type Platform struct {
 }
 
 func (c *Client) fetchManifest(imageName string) (*Manifest, error) {
-	manifestPath := fmt.Sprintf("https://registry.hub.docker.com/v2/%s/manifests/latest", imageName)
+	manifestPath := fmt.Sprintf("%s/%s/manifests/%s",baseURL, imageName, imageTag)
 
-	req, _ := http.NewRequest("GET", manifestPath, nil)
+	req, err := http.NewRequest("GET", manifestPath, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
 
 	req.Header.Add("Accept", "application/vnd.docker.distribution.manifest.v2+json")
 
@@ -41,26 +50,27 @@ func (c *Client) fetchManifest(imageName string) (*Manifest, error) {
 
 func (c *Client) makeGetManifestRequest(req *http.Request) (*Manifest, error) {
 	resp, err := c.httpClient.Do(req)
-
 	if err != nil {
 		return nil, fmt.Errorf("cannot pull image repository: %s", err)
 	}
+	defer resp.Body.Close()
 
-	switch status := resp.StatusCode; status {
-	case 200:
-		return extractManifest(resp)
-	case 401:
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return decodeManifest(resp.Body)
+	case http.StatusUnauthorized:
 		return nil, fmt.Errorf("unauthorized: %w", NewUnAuthorizedError(*resp))
 	default:
+		// Drain body to allow TCP connection reuse
+		_, _ = io.Copy(io.Discard, resp.Body)
 		return nil, fmt.Errorf("status received %w", ErrNotImplemented)
 	}
 }
 
-func extractManifest(response *http.Response) (manifest *Manifest, err error) {
-	defer response.Body.Close()
+func decodeManifest(manifestBody io.Reader) (*Manifest, error) {
 
 	manifestResponse := &ManifestListInfo{}
-	if err := json.NewDecoder(response.Body).Decode(&manifestResponse); err != nil {
+	if err := json.NewDecoder(manifestBody).Decode(&manifestResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode manifest response: %v", err)
 	}
 
