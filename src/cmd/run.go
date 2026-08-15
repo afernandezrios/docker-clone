@@ -1,13 +1,13 @@
 package cmd
 
 import (
-	"log"
+	"fmt"
 	"os"
 	"os/exec"
 
 	"github.com/afernandezrios/docker-clone/config"
-	"github.com/afernandezrios/docker-clone/internal/os/virtual_filesystems"
 	"github.com/afernandezrios/docker-clone/internal/os/container"
+	"github.com/afernandezrios/docker-clone/internal/os/vfs"
 
 	"github.com/spf13/cobra"
 )
@@ -17,39 +17,43 @@ var runCmd = &cobra.Command{
 	Short: "run command",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runContainerProcess(args)
+		cleanup, err := setupEnvironment()
+		if err != nil {
+			return fmt.Errorf("setup environment: %w", err)
+		}
+		defer cleanup()
+
+		if err := executeProcess(args); err != nil {
+			return fmt.Errorf("Process execution failed: %w", err)
+		}
+
+		return nil
 	},
 }
 
-func runContainerProcess(args []string) (e error) {
+func setupEnvironment() (func(), error) {
 
 	containerConfig := config.GetContainer()
 
 	// Isolate the environment
 	if err := container.Setup(containerConfig); err != nil {
-		log.Printf("failed to setup environment: %s", err)
+		return nil, fmt.Errorf("failed to setup environment: %w", err)
 	}
 
 	// Mount and cleanup virtual filesystems
-	cleanup, err := virtual_filesystems.Mount()
+	cleanup, err := vfs.Mount()
 	if err != nil {
-		log.Printf("failed to mount filesystems: %s", err)
+		return nil, fmt.Errorf("failed to mount filesystems: %w", err)
 	}
-	defer cleanup()
 
-	// Execute the target command
-	return executeProcess(args)
+	return cleanup, nil
 }
 
 func executeProcess(args []string) error {
 	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
 	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
-	if err := cmd.Run(); err != nil {
-		log.Printf("Process execution failed: %v", err)
-		return err
-	}
-	return nil
+	return cmd.Run()
 }

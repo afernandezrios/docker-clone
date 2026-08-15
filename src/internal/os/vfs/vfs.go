@@ -1,4 +1,4 @@
-package virtual_filesystems
+package vfs
 
 import "syscall"
 
