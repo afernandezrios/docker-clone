@@ -17,8 +17,8 @@ type ConfigData struct {
 	WorkingDir string   `json:"WorkingDir"`
 }
 
-func GetContainer() ContainerConfig {
-	byteValue, err := os.ReadFile("../container-dir/config.json")
+func GetContainer(rootfs string) ContainerConfig {
+	byteValue, err := os.ReadFile(rootfs + "/config.json")
 	if err != nil {
 		log.Panicf("Error reading configuration file: %v", err)
 	}

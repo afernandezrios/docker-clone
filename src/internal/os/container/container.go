@@ -7,12 +7,11 @@ import (
 	"github.com/afernandezrios/docker-clone/config"
 )
 
-func Setup(containerConfig config.ContainerConfig) error {
+func Setup(containerConfig config.ContainerConfig, rootfs string) error {
 	syscall.Sethostname([]byte("new-hostname"))
 
 	// Change root filesystem
-	rootPath := "../container-dir"
-	if err := syscall.Chroot(rootPath); err != nil {
+	if err := syscall.Chroot(rootfs); err != nil {
 		return err
 	}
 

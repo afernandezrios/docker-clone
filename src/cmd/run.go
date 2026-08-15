@@ -12,12 +12,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var rootfsDir string
+
 var runCmd = &cobra.Command{
-	Use:   "run",
-	Short: "run command",
+	Use:   "run [command] [args...]",
+	Short: "Run a command inside an isolated container",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cleanup, err := setupEnvironment()
+		if rootfsDir == "" {
+			return fmt.Errorf("--rootfs is required")
+		}
+
+		cleanup, err := setupEnvironment(rootfsDir)
 		if err != nil {
 			return fmt.Errorf("setup environment: %w", err)
 		}
@@ -31,12 +37,18 @@ var runCmd = &cobra.Command{
 	},
 }
 
-func setupEnvironment() (func(), error) {
+func init() {
+	runCmd.Flags().StringVar(&rootfsDir, "rootfs", "", "Path to container root directory")
+	// Hide flag from public --help output if 'run' is internal to re-exec
+	_ = runCmd.Flags().MarkHidden("rootfs")
+}
 
-	containerConfig := config.GetContainer()
+func setupEnvironment(rootfs string) (func(), error) {
+
+	containerConfig := config.GetContainer(rootfs)
 
 	// Isolate the environment
-	if err := container.Setup(containerConfig); err != nil {
+	if err := container.Setup(containerConfig, rootfs); err != nil {
 		return nil, fmt.Errorf("failed to setup environment: %w", err)
 	}
 

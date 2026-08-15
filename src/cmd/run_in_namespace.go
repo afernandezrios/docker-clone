@@ -12,12 +12,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const containerDir = "../container-dir/"
-
 var runInNamespaceCmd = &cobra.Command{
-	Use:          "ccrun <image> <command> [args...]",
-	Short:        "Run a container command in isolated Linux namespaces",
-	Args:         cobra.MinimumNArgs(2),
+	Use:   "ccrun <image> <command> [args...]",
+	Short: "Run a container command in isolated Linux namespaces",
+	Args:  cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		image := args[0]
 		containerCmd := args[1:]
@@ -28,15 +26,26 @@ var runInNamespaceCmd = &cobra.Command{
 
 func launchContainer(image string, command []string) error {
 
+	// Prepare isolated root filesystem
+	tempDir, err := os.MkdirTemp("", "container-rootfs-*")
+	if err != nil {
+		return fmt.Errorf("create temp rootfs dir: %w", err)
+	}
+	defer func() {
+		if rmErr := os.RemoveAll(tempDir); rmErr != nil {
+			fmt.Fprintf(os.Stderr, "failed to cleanup temp rootfs %s: %v\n", tempDir, rmErr)
+		}
+	}()
+
 	client := docker.New(&http.Client{})
-	if err := client.DownloadImage(image, containerDir); err != nil {
+	if err := client.DownloadImage(image, tempDir); err != nil {
 		return fmt.Errorf("download image %q: %w", image, err)
 	}
 
 	// Remove all container files when finished
 	defer func() {
-		if err := os.RemoveAll(containerDir); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to cleanup container dir %s: %v\n", containerDir, err)
+		if err := os.RemoveAll(tempDir); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to cleanup container dir %s: %v\n", tempDir, err)
 		}
 	}()
 
@@ -44,10 +53,8 @@ func launchContainer(image string, command []string) error {
 	cgroupPath := cgroup.New()
 
 	// Rerun same command (/proc/self/exe) in a new namespaces.
-	cmd := exec.Command(
-		"/proc/self/exe",
-		append([]string{"run"}, command...)...,
-	)
+	execArgs := append([]string{"run", "--rootfs", tempDir}, command...)
+	cmd := exec.Command("/proc/self/exe", execArgs...)
 
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout

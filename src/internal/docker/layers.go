@@ -69,8 +69,8 @@ func (c *Client) extractLayers(response *http.Response, imageName string, downlo
 }
 
 func (c *Client) downloadConfig(layersData *ManifestLayersData, imageName string, downloadDir string) (string, error) {
-	log.Printf("Downloading config: %s\n", layersData.Config.Digest)
-	configPath := downloadDir + "config" + layersData.Config.GetExtension()
+	log.Printf("Downloading config in %s: %s\n", downloadDir, layersData.Config.Digest)
+	configPath := downloadDir + "/config" + layersData.Config.GetExtension()
 	return c.DownloadBlob(layersData.Config.Digest, configPath, imageName)
 }
 
