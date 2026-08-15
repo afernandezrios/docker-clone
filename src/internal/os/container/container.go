@@ -7,7 +7,7 @@ import (
 	"github.com/afernandezrios/docker-clone/config"
 )
 
-func Setup(containerConfig config.ImageConfigFile, rootfs string) error {
+func Setup(imgConfig *config.ImageConfig, rootfs string) error {
 	syscall.Sethostname([]byte("new-hostname"))
 
 	// Change root filesystem
@@ -16,12 +16,12 @@ func Setup(containerConfig config.ImageConfigFile, rootfs string) error {
 	}
 
 	// Set working directory inside the new root
-	if err := syscall.Chdir(containerConfig.Config.WorkingDir); err != nil {
+	if err := syscall.Chdir(imgConfig.WorkingDir); err != nil {
 		return err
 	}
 
 	// Apply environment variables
-	for _, env := range containerConfig.Config.Env {
+	for _, env := range imgConfig.Env {
 		parts := strings.SplitN(env, "=", 2)
 		if len(parts) != 2 {
 			continue

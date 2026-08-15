@@ -46,10 +46,13 @@ func init() {
 
 func setupEnvironment(rootfs string) (func(), error) {
 
-	containerConfig := config.Load(rootfs)
+	imgConfig, err := config.Load(rootfs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file: %w", err)
+	}
 
 	// Isolate the environment
-	if err := container.Setup(containerConfig, rootfs); err != nil {
+	if err := container.Setup(imgConfig, rootfs); err != nil {
 		return nil, fmt.Errorf("failed to setup environment: %w", err)
 	}
 

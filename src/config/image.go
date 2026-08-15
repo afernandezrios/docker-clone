@@ -2,8 +2,9 @@ package config
 
 import (
 	"encoding/json"
-	"log"
+	"fmt"
 	"os"
+	"path/filepath"
 )
 
 type ImageConfigFile struct {
@@ -17,14 +18,18 @@ type ImageConfig struct {
 	WorkingDir string              `json:"WorkingDir"`
 }
 
-func Load(rootfs string) ImageConfigFile {
-	byteValue, err := os.ReadFile(rootfs + "/config.json")
+func Load(rootfs string) (*ImageConfig, error) {
+	configPath := filepath.Join(rootfs, "config.json")
+
+	data, err := os.ReadFile(configPath)
 	if err != nil {
-		log.Panicf("Error reading configuration file: %v", err)
+		return nil, fmt.Errorf("Error reading configuration file in %s: %w", configPath, err)
 	}
 
-	var containerConfig ImageConfigFile
-	json.Unmarshal(byteValue, &containerConfig)
+	var raw ImageConfigFile
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, fmt.Errorf("Error parsing image config: %w", err)
+	}
 
-	return containerConfig
+	return &raw.Config, nil
 }
