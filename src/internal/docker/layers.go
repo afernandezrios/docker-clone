@@ -34,7 +34,7 @@ func (c *Client) DownloadLayers(manifest Manifest, imageName string, downloadDir
 }
 
 func (c *Client) makeGetLayersRequest(req *http.Request, imageName string, downloadDir string) (string, error) {
-	resp, err := c.client.Do(req)
+	resp, err := c.httpClient.Do(req)
 
 	if err != nil {
 		return "", fmt.Errorf("cannot download image layers: %v", err)

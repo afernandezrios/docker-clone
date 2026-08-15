@@ -53,7 +53,7 @@ func (c *Client) Login(authInfo AuthenticationInfo) (*LoginData, error) {
 }
 
 func (c *Client) doLoginRequest(req *http.Request) (*LoginData, error) {
-	resp, err := c.client.Do(req)
+	resp, err := c.httpClient.Do(req)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to submit login request: %v", err)

@@ -29,7 +29,7 @@ func (c *Client) DownloadBlob(digest string, blobPath string, imageName string) 
 }
 
 func (c *Client) makeGetBlobRequest(req *http.Request, blobPath string) (string, error) {
-	resp, err := c.client.Do(req)
+	resp, err := c.httpClient.Do(req)
 
 	if err != nil {
 		return "", fmt.Errorf("cannot download blob: %s", err)
@@ -47,7 +47,7 @@ func (*Client) extractBlob(resp *http.Response, blobPath string) (string, error)
 	defer resp.Body.Close()
 
 	out, err := os.Create(blobPath)
-	
+
 	if err != nil {
 		return "", fmt.Errorf("cannot create blob file: %s", err)
 	}

@@ -40,7 +40,7 @@ func (c *Client) PullManifest(imageName string) (*Manifest, error) {
 }
 
 func (c *Client) makeGetManifestRequest(req *http.Request) (*Manifest, error) {
-	resp, err := c.client.Do(req)
+	resp, err := c.httpClient.Do(req)
 
 	if err != nil {
 		return nil, fmt.Errorf("cannot pull image repository: %s", err)
