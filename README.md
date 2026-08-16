@@ -44,3 +44,10 @@ cd src
 go build
 sudo ./docker-clone ccrun library/alpine sh
 ```
+
+### Run test
+
+```sh
+cd src
+sudo -E go test -v -run TestIntegration_RunContainer .
+```
