@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	baseURL = "https://registry.hub.docker.com/v2/" // TODO: make it configurable
-	imageTag = "latest" // TODO: parse from cli input parameter
+	BaseURL                     = "https://registry.hub.docker.com/v2/" // TODO: make it configurable
+	ImageTag                    = "latest"                              // TODO: parse from cli input parameter
+	MediaTypeDockerManifestList = "application/vnd.docker.distribution.manifest.v2+json"
 )
 
 type ManifestListInfo struct {
@@ -32,14 +33,14 @@ type Platform struct {
 }
 
 func (c *Client) fetchManifest(imageName string) (*Manifest, error) {
-	manifestPath := fmt.Sprintf("%s/%s/manifests/%s",baseURL, imageName, imageTag)
+	manifestPath := fmt.Sprintf("%s/%s/manifests/%s", BaseURL, imageName, ImageTag)
 
 	req, err := http.NewRequest("GET", manifestPath, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
-	req.Header.Add("Accept", "application/vnd.docker.distribution.manifest.v2+json")
+	req.Header.Add("Accept", MediaTypeDockerManifestList)
 
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
@@ -74,19 +75,17 @@ func decodeManifest(manifestBody io.Reader) (*Manifest, error) {
 		return nil, fmt.Errorf("failed to decode manifest response: %v", err)
 	}
 
-	return getManifestForCurrentOS(*manifestResponse), nil
+	return getManifestForCurrentOS(*manifestResponse)
 }
 
-func getManifestForCurrentOS(manifestList ManifestListInfo) *Manifest {
+func getManifestForCurrentOS(manifestList ManifestListInfo) (*Manifest, error) {
 	os := runtime.GOOS
 	arch := runtime.GOARCH
 
-	var validManifest *Manifest
 	for _, manifest := range manifestList.Manifests {
 		if manifest.Platform.Os == os && manifest.Platform.Architecture == arch {
-			validManifest = &manifest
-			break
+			return &manifest, nil
 		}
 	}
-	return validManifest
+	return nil, fmt.Errorf("no matching manifest found for %s/%s", os, arch)
 }
