@@ -3,11 +3,17 @@ package docker
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"io"
 	"net/http"
 	"regexp"
 	"strings"
 )
+
+var challengeRegex = regexp.MustCompile(`(.+)="(.+)"`)
+
+type LoginData struct {
+	Token string `json:"token"`
+}
 
 type AuthenticationInfo struct {
 	Realm   string
@@ -24,10 +30,6 @@ func (c *Client) Authorize(authInfo AuthenticationInfo) error {
 	return nil
 }
 
-type LoginData struct {
-	Token string `json:"token"`
-}
-
 // Login into docker registry. Returns token.
 // Expected input example:
 //   - realm:="https://auth.docker.io/token";
@@ -37,6 +39,15 @@ type LoginData struct {
 // See https://distribution.github.io/distribution/spec/auth/token/#how-to-authenticate
 func (c *Client) Login(authInfo AuthenticationInfo) (*LoginData, error) {
 
+	req, err := buildLoginRequest(authInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.doLoginRequest(req)
+}
+
+func buildLoginRequest(authInfo AuthenticationInfo) (*http.Request, error) {
 	req, err := http.NewRequest("GET", authInfo.Realm, nil)
 
 	if err != nil {
@@ -48,36 +59,37 @@ func (c *Client) Login(authInfo AuthenticationInfo) (*LoginData, error) {
 	queryParams.Set("service", authInfo.Service)
 	queryParams.Set("scope", authInfo.Scope)
 	reqUrl.RawQuery = queryParams.Encode()
-
-	return c.doLoginRequest(req)
+	return req, nil
 }
 
 func (c *Client) doLoginRequest(req *http.Request) (*LoginData, error) {
 	resp, err := c.httpClient.Do(req)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to submit login request: %v", err)
 	}
+	defer resp.Body.Close()
 
-	switch status := resp.StatusCode; status {
-	case 200:
+	switch resp.StatusCode {
+	case http.StatusOK:
 		return extractLoginData(resp)
-	case 401:
+
+	case http.StatusUnauthorized:
 		return nil, fmt.Errorf("unauthorized: %w", NewUnAuthorizedError(*resp))
+
 	default:
+		// Drain body to allow TCP connection reuse
+		_, _ = io.Copy(io.Discard, resp.Body)
 		return nil, fmt.Errorf("status received %w", ErrNotImplemented)
 	}
 }
 
 func extractLoginData(response *http.Response) (*LoginData, error) {
-	defer response.Body.Close()
-
-	var loginData *LoginData
+	var loginData LoginData
 	if err := json.NewDecoder(response.Body).Decode(&loginData); err != nil {
 		return nil, fmt.Errorf("failed to decode login response: %v", err)
 	}
 
-	return loginData, nil
+	return &loginData, nil
 }
 
 // ParseWwwAuthentication parse the authentication data received in a WWW-Authenticate header.
@@ -88,8 +100,13 @@ func extractLoginData(response *http.Response) (*LoginData, error) {
 // [WWW-Authenticate doc]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/WWW-Authenticate
 func ParseWwwAuthentication(wwwAuthHeader string) (authInfo AuthenticationInfo) {
 
-	headerValue := getLastElement(strings.Split(wwwAuthHeader, " "))
-	challenges := challengesExtractor(strings.Split(headerValue, ","))
+	// Example header: Bearer realm="https://auth.docker.io/token",service="registry.docker.io",scope="repository:library/alpine:pull"
+	authHeaderParts := strings.SplitN(strings.TrimSpace(wwwAuthHeader), " ", 2)
+	if len(authHeaderParts) < 2 {
+		return AuthenticationInfo{}
+	}
+
+	challenges := challengesExtractor(strings.Split(authHeaderParts[1], ","))
 
 	return AuthenticationInfo{
 		Realm:   challenges["realm"],
@@ -98,19 +115,15 @@ func ParseWwwAuthentication(wwwAuthHeader string) (authInfo AuthenticationInfo) 
 	}
 }
 
-func getLastElement(stringArray []string) string {
-	return stringArray[len(stringArray)-1]
-}
-
 // expected input: realm="https://auth.docker.io/token",service="registry.docker.io",scope="repository:alpine/git:pull"
 func challengesExtractor(headerValue []string) map[string]string {
 	challenges := make(map[string]string)
-	var challengeRegex = regexp.MustCompile(`(.+)="(.+)"`)
 
 	for _, value := range headerValue {
 		match := challengeRegex.FindStringSubmatch(value)
-		log.Printf("Challenge added: %s\n", match[0])
-		challenges[match[1]] = match[2]
+		if match != nil {
+			challenges[match[1]] = match[2]
+		}
 	}
 
 	return challenges
