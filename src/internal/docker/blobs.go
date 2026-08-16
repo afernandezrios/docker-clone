@@ -18,8 +18,11 @@ type BlobInfo struct {
 // Doc: https://distribution.github.io/distribution/spec/api/#pulling-a-layer
 func (c *Client) DownloadBlob(digest string, blobPath string, imageName string) error {
 
-	blobRequestPath := fmt.Sprintf("https://registry.hub.docker.com/v2/%s/blobs/%s", imageName, digest)
-	req, _ := http.NewRequest("GET", blobRequestPath, nil)
+	blobRequestPath := fmt.Sprintf("%s/%s/blobs/%s", BaseURL, imageName, digest)
+	req, err := http.NewRequest("GET", blobRequestPath, nil)
+	if err != nil {
+		return fmt.Errorf("create blob request: %w", err)
+	}
 
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
@@ -30,49 +33,54 @@ func (c *Client) DownloadBlob(digest string, blobPath string, imageName string) 
 
 func (c *Client) makeGetBlobRequest(req *http.Request, blobPath string) error {
 	resp, err := c.httpClient.Do(req)
-
 	if err != nil {
 		return fmt.Errorf("cannot download blob: %s", err)
 	}
+	defer resp.Body.Close()
 
 	switch resp.StatusCode {
-	case 200:
-		return c.extractBlob(resp, blobPath)
+
+	case http.StatusOK:
+		return c.saveBlob(resp.Body, blobPath)
+
 	default:
+		// Drain body to allow TCP connection reuse
+		_, _ = io.Copy(io.Discard, resp.Body)
 		return fmt.Errorf("blob not found: %s", resp.Status)
 	}
 }
 
-func (*Client) extractBlob(resp *http.Response, blobPath string) error {
-	defer resp.Body.Close()
-
+func (*Client) saveBlob(src io.Reader, blobPath string) error {
 	out, err := os.Create(blobPath)
-
 	if err != nil {
 		return fmt.Errorf("cannot create blob file: %s", err)
 	}
-
 	defer out.Close()
 
-	_, err = io.Copy(out, resp.Body)
-
-	if err != nil {
+	if _, err := io.Copy(out, src); err != nil {
 		return fmt.Errorf("cannot copy blob in path '%s': %v", blobPath, err)
 	}
+
+	// TODO: verify digest checksum
 
 	return nil
 }
 
 // Getting extension of the file according to: https://distribution.github.io/distribution/spec/manifest-v2-2/#media-types
 // It also supports OCI standard -> https://github.com/opencontainers/image-spec/blob/main/manifest.md#image-manifest-property-descriptions
-func (blob *BlobInfo) GetExtension() string {
+func (blob BlobInfo) GetExtension() string {
 	switch blob.MediaType {
-	case "application/vnd.docker.image.rootfs.diff.tar.gzip", "application/vnd.oci.image.layer.v1.tar+gzip":
-		// “Layer”, as a gzipped tar
+
+	// “Layer”, as a gzipped tar
+	case "application/vnd.docker.image.rootfs.diff.tar.gzip",
+		"application/vnd.oci.image.layer.v1.tar+gzip":
 		return ".tar.gz"
-	case "application/vnd.docker.container.image.v1+json", "application/vnd.oci.image.config.v1+json":
-		// Container config JSON
+
+	// Container config JSON
+	case "application/vnd.docker.container.image.v1+json",
+		"application/vnd.oci.image.config.v1+json":
 		return ".json"
+
 	default:
 		log.Println("MediaType not implemented: " + blob.MediaType)
 		return ""
